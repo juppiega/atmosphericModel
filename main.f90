@@ -64,10 +64,6 @@ DO WHILE (time <= time_end)
   !---------------------------------------------------------------------------------------
   ! Ending loop actions
   !---------------------------------------------------------------------------------------
-  !
-  ! Advance to next time step
-  !
-  time = time + dt
 
   !
   ! Write data to files and time infomation to screen
@@ -76,6 +72,11 @@ DO WHILE (time <= time_end)
     WRITE(*, '(a8, f8.3, a6)') 'time = ', time/one_hour, '  hours'
     CALL write_files(progn, time)
   END IF
+
+  !
+  ! Advance to next time step
+  !
+  time = time + dt
 
   !
   ! Count loop number
@@ -165,7 +166,7 @@ SUBROUTINE write_files(progn, time)
     !write(20, *) progn%isoprene%deposition
   end if
 
-  call parameterizations_output(progn) ! TODO: dynamiikalle myos
+  call parameterizations_output(progn) ! TODO: empty as of yet
 END SUBROUTINE write_files
 
 

@@ -286,11 +286,15 @@ subroutine compute_canopy_resistance(this, progn)
     real(kind = 8), parameter :: M_water = 18.01528 ! [g/mol]
     real(kind = 8), parameter :: r_ac = 2000 ! [s/m]
 
-    T = progn%theta(2)
+    T = progn%theta(2) - 273.15 ! [C]
     G = PAR/0.45 * 0.219 ! Solar radiation [W/m^2]
 
     ! Compute component resistances, which depend on the solar radiation
-    this%r_st = 130 * sqrt(this%molar_mass / M_water) * (1 + (200/(G+0.1))**2 * (400/(T*(40-T))))
+    if (0 <= T .and. T <= 40) then
+        this%r_st = 130 * sqrt(this%molar_mass / M_water) * (1 + (200/(G+0.1))**2 * (400/(T*(40-T))))
+    else
+        this%r_st = r_max
+    end if
     this%r_dc = 100 * (1 + 1000/(G+10))
 
     ! Compute r_c

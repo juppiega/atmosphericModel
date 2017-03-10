@@ -55,6 +55,7 @@ real(kind = 8), public, parameter :: M_isoprene = 68.12 ! [g/mol]
 real(kind = 8), public, parameter :: H_isoprene = 1.3E-2 ! [M/atm]
 real(kind = 8), public, parameter :: f_isoprene = 0 ! [unitless]
 real(kind = 8), public :: r_a
+real(kind = 8), public :: r_max = 1E5 ! [s/m] maximum resistance of r_st
 
 CONTAINS
 

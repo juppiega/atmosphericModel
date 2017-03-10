@@ -1,6 +1,7 @@
 function plotTimeseriesSurf(varname)
 
   load('h.dat')
+  load('time.dat')
   if strcmpi(varname,'u')
     load('ua.dat')
     var = ua;
@@ -20,23 +21,22 @@ function plotTimeseriesSurf(varname)
     load('Km.dat')
     var = Km;
     h = (h(2:end) + h(1:end-1)) / 2;
+    time = time(2:end);
   elseif strcmpi(varname,'Kh')
     load('Kh.dat')
     var = Kh;
     h = (h(2:end) + h(1:end-1)) / 2;
+    time = time(2:end);
   elseif strcmpi(varname,'Ri')
     load('Ri.dat')
     var = Ri;
     h = (h(2:end) + h(1:end-1)) / 2;
+    time = time(2:end);
   else
     error('Unrecognized variable name')
   end
   
-  load('time.dat')
-  
   [X,Y] = meshgrid(time, h);
-  
-  var(abs(var)>1000) = 0;
   
   figure;
   surf(X, Y, var','edgecolor','none')

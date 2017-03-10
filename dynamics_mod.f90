@@ -29,7 +29,7 @@ PUBLIC dynamics_init
 PUBLIC compute_dynamics  ! functions
 
 !
-! Some constants. TODO: Uuteen moduliin
+! Some constants
 !
 REAL(dp), PARAMETER :: lambda_ = 300.0_dp  ! maximum mixing length, meters
 REAL(dp), PARAMETER :: vonk_ = 0.4_dp      ! von Karman constant, dimensionless
@@ -131,43 +131,41 @@ subroutine compute_dynamics(progn, stepType)
     integer, intent(in) :: stepType
     CHARACTER(255) :: outfmt
 
+    ! Save copies to member variables of dynamics_mod.
+    u_ = progn%ua
+    v_ = progn%va
+    theta_ = progn%theta
 
-    if (stepType == leapfrog_atPreviousFullTIme .or. &
-        stepType == euler_step) then
-        u_ = progn%ua
-        v_ = progn%va
-        theta_ = progn%theta
-    else
-        u_ = progn%ua_mid
-        v_ = progn%va_mid
-        theta_ = progn%theta_mid
-    end if
-
+    ! Compute derivatives and vertical shear: d(sqrt(u**2 + v**2))/dz
     dUDz_ = zDeriv(u_)
     DVDz_ = zDeriv(v_)
     dThetaDz_ = zDeriv(theta_)
     verticalWindShear_ = compute_verticalWindShear()
 
+    ! Richardson number
     richardsonNum_ = compute_richardsonNum()
 
+    ! Turbulent coefficients
     Km_ =  compute_Km()
     Kh_ =  compute_Kh()
 
-    progn%dudt = compute_uTendency()
-    progn%dvdt = compute_vTendency()
-    progn%dThetaDt = compute_thetaTendency()
+    ! Compute tendencies for meteorology prognostics
+    progn%dudt = compute_uTendency() ! Equation (1)
+    progn%dvdt = compute_vTendency() ! Equation (2)
+    progn%dThetaDt = compute_thetaTendency() ! Equation (3)
 
     ! Compute chemistry dynamical tendencies every timestep, but the parameterizations (in parameterizations_mod) only every dt_chem
     call progn % alpha_pinene % compute_dynamical_tendency(Kh_)
     call progn % isoprene     % compute_dynamical_tendency(Kh_)
 
+    ! Output Km, Kh, Ri to files for diagnostics.
     IF ( time >= time_start_output .and. MOD( NINT((time - time_start)*10.0), NINT(dt_output*10.0)) == 0 ) THEN
         WRITE(outfmt, '(a, i3, a)') '(', nz-1, 'es25.16)'
+!        WRITE(*, '(a8, f8.3, a6)') 'time = ', time/one_hour, '  hours'
         WRITE(16, outfmt) Km_
         WRITE(17, outfmt) Kh_
         WRITE(18, outfmt) richardsonNum_
     END IF
-
 
 end subroutine
 
