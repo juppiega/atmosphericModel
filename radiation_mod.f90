@@ -1,3 +1,5 @@
+! module radiation_mod
+! PURPOSE: Compute solar radiation.
 module radiation_mod
     use parameters_mod
     use time_mod
@@ -7,6 +9,8 @@ module radiation_mod
 
 contains
 
+! subroutine compute_radiation()
+! PURPOSE: Compute PAR. Called in the parameterizations_mod.
 subroutine compute_radiation()
     implicit none
 

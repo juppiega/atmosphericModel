@@ -34,6 +34,7 @@ PUBLIC compute_dynamics  ! functions
 REAL(dp), PARAMETER :: lambda_ = 300.0_dp  ! maximum mixing length, meters
 REAL(dp), PARAMETER :: vonk_ = 0.4_dp      ! von Karman constant, dimensionless
 
+! Variables for computing the boundary layer turbulent fluxes.
 real(kind = 8), dimension(nz-1) :: richardsonNum_, Km_, Kh_, &
                   verticalWindShear_, mixingLength_, &
                   dThetaDz_, dUDz_, DVDz_
@@ -42,6 +43,10 @@ real(kind = 8), dimension(nz) :: u_, v_, theta_ ! TODO: Pointtereiksi, jotka oso
 
 CONTAINS
 
+! function compute_verticalWindShear() result(vws)
+! PURPOSE: Compute vertical wind shear.
+! OUTPUT:
+!     (real*8) : vws [vertical wind shear]
 function compute_verticalWindShear() result(vws)
     implicit none
     real(kind = 8), allocatable :: vws(:) ! Vertical wind shear
@@ -59,7 +64,11 @@ function compute_richardsonNum() result(Ri)
 
 end function
 
-function compute_mixingLength() result(mixingLength) ! Aja initissa
+! function compute_mixingLength() result(mixingLength)
+! PURPOSE: Compute mixing length.
+! OUTPUT:
+!     (real*8) : mixingLength
+function compute_mixingLength() result(mixingLength)
     implicit none
     real(kind = 8), allocatable :: mixingLength(:)
 
@@ -67,6 +76,8 @@ function compute_mixingLength() result(mixingLength) ! Aja initissa
 
 end function
 
+! function compute_Km() result(Km)
+! PURPOSE: Compute turbulent coefficient for momentum transfer.
 function compute_Km() result(Km)
     implicit none
     real(kind = 8) :: f(nz-1) ! Function of Richardson number and altitude
@@ -84,6 +95,8 @@ function compute_Km() result(Km)
 
 end function
 
+! function compute_Kh() result(Kh)
+! PURPOSE: Compute turbulent coefficient for heat and chemical transport.
 function compute_Kh() result(Kh)
     implicit none
     real(kind = 8) :: f(nz-1) ! Function of Richardson number and altitude
@@ -101,6 +114,8 @@ function compute_Kh() result(Kh)
 
 end function
 
+! function compute_uTendency() result(dudt)
+! PURPOSE: Compute du/dt, Equation (1).
 function compute_uTendency() result(dudt)
     implicit none
     real(kind = 8), allocatable :: dudt(:)
@@ -109,6 +124,8 @@ function compute_uTendency() result(dudt)
 
 end function
 
+! function compute_vTendency() result(dvdt)
+! PURPOSE: Compute dv/dt, Equation (2).
 function compute_vTendency() result(dvdt)
     implicit none
     real(kind = 8), allocatable :: dvdt(:)
@@ -117,6 +134,8 @@ function compute_vTendency() result(dvdt)
 
 end function
 
+! function compute_thetaTendency() result(dThetaDt)
+! PURPOSE: Compute d Theta / dt. Equation (3).
 function compute_thetaTendency() result(dThetaDt)
     implicit none
     real(kind = 8), allocatable :: dThetaDt(:)
@@ -125,6 +144,10 @@ function compute_thetaTendency() result(dThetaDt)
 
 end function
 
+! subroutine compute_dynamics(progn, stepType)
+! PURPOSE: Compute dynamics (tendencies from BL turbulence).
+! INPUT:
+!   (prognostics_type) : progn [contains the full atmospheric state]
 subroutine compute_dynamics(progn, stepType)
     implicit none
     type(prognostics_type), intent(inout) :: progn

@@ -1,3 +1,5 @@
+! module parameterizations_mod
+! PURPOSE: Compute parametrizations (at this stage, chemistry emissions and depositions only)
 module parameterizations_mod
     use radiation_mod
     use chemistry_mod
@@ -12,6 +14,10 @@ subroutine parameterizations_init()
 
 end subroutine
 
+! subroutine compute_parameterizations(progn)
+! PURPOSE: Main driver for parameterization computations, called in the main time loop.
+! INPUT:
+!   (prognostics_type) : progn [contains the full atmospheric state]
 subroutine compute_parameterizations(progn)
     use time_mod
     implicit none

@@ -1,3 +1,5 @@
+! module boundary_conditions_mod
+! PURPOSE: Update boundary contitions
 module boundary_conditions_mod
     use prognostics_mod
     implicit none
@@ -5,15 +7,24 @@ module boundary_conditions_mod
     public set_boundary_conditions
 contains
 
+! subroutine set_boundary_conditions(progn, time)
+! PURPOSE: Called every time step. Updates upper and lower boundary conditions.
+! INPUT:
+!   (prognostics_type) : progn [contains the full atmospheric state]
+!   (real*8)           : time  [simulation time]
 subroutine set_boundary_conditions(progn, time)
     implicit none
     type(prognostics_type), intent(inout) :: progn
     real(kind = 8), intent(in) :: time
+    ! Locals:
     real(kind = 8) :: surfaceTheta
 
+    ! Read surface theta from file.
     call surface_values(surfaceTheta, time)
     progn%theta(1) = surfaceTheta
-    progn%theta_mid(1) = surfaceTheta
+    progn%theta_mid(1) = surfaceTheta ! For leapfrog, not fully implemented.
+
+    ! Update chemical component lower boundary such that dc/dz = 0.
     progn%alpha_pinene%concentration(1) = progn%alpha_pinene%concentration(2)
     progn%isoprene%concentration(1) = progn%isoprene%concentration(2)
 
