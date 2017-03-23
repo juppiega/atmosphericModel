@@ -9,6 +9,14 @@
 ! - Check code conventions at
 !   http://www.cesm.ucar.edu/working_groups/Software/dev_guide/dev_guide/node7.html
 !
+! BUILDING:
+! -Execute "make all" in the Debug folder.
+!
+! RUNNING:
+! -Execute command
+!    $ Debug/atmosphericModel
+! in atmosphericModel/ folder (where the output/ folder resides).
+!
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 PROGRAM main
@@ -121,6 +129,9 @@ SUBROUTINE open_files()
   OPEN(13, FILE = TRIM(ADJUSTL(outdir))//'/ua.dat'    , STATUS = 'REPLACE', ACTION = 'WRITE')
   OPEN(14, FILE = TRIM(ADJUSTL(outdir))//'/va.dat'    , STATUS = 'REPLACE', ACTION = 'WRITE')
   OPEN(15, FILE = TRIM(ADJUSTL(outdir))//'/theta.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+  OPEN(16, FILE = TRIM(ADJUSTL(outdir))//'/Km.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+  OPEN(17, FILE = TRIM(ADJUSTL(outdir))//'/Kh.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+  OPEN(18, FILE = TRIM(ADJUSTL(outdir))//'/Ri.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
   if (output_chemistry) then
     OPEN(19, FILE = TRIM(ADJUSTL(outdir))//'/alpha_pinene.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
     OPEN(20, FILE = TRIM(ADJUSTL(outdir))//'/isoprene.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')

@@ -200,9 +200,6 @@ SUBROUTINE dynamics_init()
     implicit none
     CHARACTER(255), PARAMETER :: outdir = 'output'
     mixingLength_ = compute_mixingLength() ! SAILYTA
-    OPEN(16, FILE = TRIM(ADJUSTL(outdir))//'/Km.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
-    OPEN(17, FILE = TRIM(ADJUSTL(outdir))//'/Kh.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
-    OPEN(18, FILE = TRIM(ADJUSTL(outdir))//'/Ri.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
 END SUBROUTINE dynamics_init
 
 
