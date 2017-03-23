@@ -1,0 +1,7 @@
+BUILDING:
+ -Execute "make all" in the Debug folder.
+
+ RUNNING:
+ -Execute command
+    $ Debug/atmosphericModel
+ in atmosphericModel/ folder (where the output/ folder resides).
