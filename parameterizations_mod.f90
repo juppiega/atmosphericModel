@@ -36,11 +36,22 @@ subroutine compute_chemistry(progn)
     type(prognostics_type), intent(inout) :: progn
 
     call compute_radiation() ! PAR
+
+    call compute_reactions(progn)
+
     call compute_aerodynamic_resistance(progn) ! r_a
 
-    ! Compute parameterized tendencies for chemicel components. Q_emission + Q_deposition (equation (20) + (26))
+    ! Compute parameterized tendencies for chemicel components. Q_emission + Q_deposition + Q_chemical_reactions.
     call progn % alpha_pinene % compute_parameterized_tendency(progn)
     call progn % isoprene     % compute_parameterized_tendency(progn)
+
+end subroutine
+
+subroutine compute_reactions(progn)
+    implicit none
+    type(prognostics_type), intent(in) :: progn
+
+    call alpha_pinene_OH%compute_rate(progn)
 
 end subroutine
 

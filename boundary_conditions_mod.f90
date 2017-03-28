@@ -27,6 +27,7 @@ subroutine set_boundary_conditions(progn, time)
     ! Update chemical component lower boundary such that dc/dz = 0.
     progn%alpha_pinene%concentration(1) = progn%alpha_pinene%concentration(2)
     progn%isoprene%concentration(1) = progn%isoprene%concentration(2)
+    progn%OH%concentration(1) = progn%OH%concentration(2)
 
 end subroutine
 

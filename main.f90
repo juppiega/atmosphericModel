@@ -173,8 +173,6 @@ SUBROUTINE write_files(progn, time)
   if (output_chemistry) then
     write(19, outfmt) progn%alpha_pinene%concentration
     write(20, outfmt) progn%isoprene%concentration
-    !write(19, *) progn%alpha_pinene%deposition
-    !write(20, *) progn%isoprene%deposition
   end if
 
   call parameterizations_output(progn) ! TODO: empty as of yet

@@ -17,10 +17,19 @@ module prognostics_mod
     ! PURPOSE: Base type, from which all chemical elements (e.g. isoprene) are derived.
     !          Most of the variables and governing equations are the same, but the
     !          emission routine has to be written separately for every element.
+    ! TO ADD NEW CHEMICAL ELEMENT:
+    ! 1. Derive a new type from chemical_element and write reaction equations
+    ! 2. Add it to prognostics_type
+    ! 3. Add it to prognostics_type::init_chemical_elements
+    ! 4. Add it to prognostics_type::euler_next
+    ! 5. Add it to set_boundary_conditions
+    ! 6. Add it to parameterizations_mod
+    ! 7. Add it to write_files
     type, abstract :: chemical_element
-        real(kind = 8) :: concentration(nz) ! Concentration in the atmospheric column [# / cm^3]
-        real(kind = 8) :: parameterized_tendency(nz-2)    ! Tendency from emission, deposition, chemical reactions [# / cm^3 / s]
-        real(kind = 8) :: dynamical_tendency(nz-2)    ! Tendency from atmospheric turbulence (computed in dynamics_mod) [# / cm^3 / s]
+        real(kind = 8) :: concentration(nz) = 0.0 ! Concentration in the atmospheric column [# / cm^3]
+        real(kind = 8) :: parameterized_tendency(nz-2) = 0.0    ! Tendency from emission, deposition, chemical reactions [# / cm^3 / s]
+        real(kind = 8) :: dynamical_tendency(nz-2) = 0.0    ! Tendency from atmospheric turbulence (computed in dynamics_mod) [# / cm^3 / s]
+        real(kind = 8) :: reaction_rate(nz-2) = 0.0         ! Reaction rate.
         real(kind = 8) :: molar_mass                  ! Molar mass [g / mol]
         real(kind = 8) :: emission = 0.0    ! Emission at 10 meters [# / cm^3 / s]
         real(kind = 8) :: deposition = 0.0  ! Deposition at the ground [# / cm^3 / s]
@@ -29,6 +38,7 @@ module prognostics_mod
         real(kind = 8) :: r_st, r_m, r_lu, r_dc, r_cl, r_gs, r_b, r_c ! Molecule specific resistances [s/m]. r_a in chemistry_mod
     contains
         procedure(compute_emission_interface), deferred :: compute_emission ! Emission computation routine (written in the derived class)
+        procedure(compute_reaction_rate_interface), deferred :: compute_reaction_rate ! Reaction rate computation routine (written in the derived class)
         ! Resistance and deposition computations
         procedure :: compute_quasi_laminar_resistance
         procedure :: compute_canopy_resistance
@@ -48,6 +58,7 @@ module prognostics_mod
     type, extends(chemical_element) :: alpha_pinene_type
     contains
         procedure :: compute_emission => compute_emission_alpha_pinene
+        procedure :: compute_reaction_rate => reaction_rate_alpha_pinene
     end type
 
     ! type, extends(chemical_element) :: isoprene_type
@@ -55,7 +66,21 @@ module prognostics_mod
     type, extends(chemical_element) :: isoprene_type
     contains
         procedure :: compute_emission => compute_emission_isoprene
+        procedure :: compute_reaction_rate => no_reaction
     end type
+
+    ! type, extends(chemical_element) :: OH_type
+    ! PURPOSE: The OH type derived from chemical_element
+    type, extends(chemical_element) :: OH_type
+    contains
+        procedure :: compute_emission => no_emission
+        procedure :: compute_reaction_rate => no_reaction
+    end type
+
+
+
+
+
 
     ! type prognostics_type
     ! PURPOSE: Contains all of the prognostics (ua, va, theta and chemical components)
@@ -64,6 +89,7 @@ module prognostics_mod
         real(kind = 8), dimension(nz-2) :: dudt, dvdt, dThetaDt ! Tendencies [m/s^2] and [K/s]
         type(alpha_pinene_type) :: alpha_pinene                 ! Instantation of alpha_pinene
         type(isoprene_type) :: isoprene                         ! Instantation of isoprene
+        type(OH_type) :: OH                         ! Instantation of OH
     contains
         procedure :: leapfrog_middle                            ! Leapfrog to middle (NOT FULLY IMPLEMENTED)
         procedure :: leapfrog_next                              ! Leapfrog to next timestep (NOT FULLY IMPLEMENTED)
@@ -71,12 +97,56 @@ module prognostics_mod
         procedure :: init_chemical_elements                     ! Initialize the chemical components
     end type prognostics_type
 
+
+
+
+
+
+
+    ! type, abstract :: chemical_reaction
+    ! PURPOSE: base type for chemical reactions.
+    type, abstract :: chemical_reaction
+        real(kind = 8) :: rate_coefficient(nz-2)
+        real(kind = 8) :: rate(nz-2)
+    contains
+        procedure(compute_chemistry_interface), deferred, private :: compute_rate_coefficient
+        procedure(compute_chemistry_interface), deferred :: compute_rate
+    end type
+
+    type, extends(chemical_reaction) :: alpha_pinene_OH_type
+    contains
+        procedure :: compute_rate_coefficient => compute_rate_coefficient_alpha_pinene_OH
+        procedure :: compute_rate => compute_rate_alpha_pinene_OH
+    end type
+
+    type(alpha_pinene_OH_type) :: alpha_pinene_OH
+
+
+
+
+
+
     ! Interface for the emission routie. Required for the deferred routine compute_emission in chemical_element.
     interface
         subroutine compute_emission_interface(this, progn)
             import
             class(chemical_element), intent(inout) :: this
             type(prognostics_type), intent(in) :: progn
+        end subroutine
+    end interface
+
+    interface
+        subroutine compute_chemistry_interface(this, progn)
+            import
+            class(chemical_reaction), intent(inout) :: this
+            type(prognostics_type), intent(in) :: progn
+        end subroutine
+    end interface
+
+    interface
+        subroutine compute_reaction_rate_interface(this)
+            import
+            class(chemical_element), intent(inout) :: this
         end subroutine
     end interface
 
@@ -119,6 +189,9 @@ subroutine euler_next(this)
     this%isoprene%concentration(updInd) = this%isoprene%concentration(updInd) + &
     dt * (this%isoprene%dynamical_tendency + this%isoprene%parameterized_tendency)
 
+    this%OH%concentration(updInd) = this%OH%concentration(updInd) + &
+    dt * (this%OH%dynamical_tendency + this%OH%parameterized_tendency)
+
 end subroutine
 
 ! subroutine prognostics_type::init_chemical_element(this)
@@ -129,6 +202,9 @@ subroutine init_chemical_elements(this)
 
     call this%alpha_pinene%init(M_alpha_pinene, H_alpha_pinene, f_alpha_pinene)
     call this%isoprene%init(M_isoprene, H_isoprene, f_isoprene)
+    call this%OH%init(17.01_dp, 0.0_dp, 0.0_dp)
+
+    this%OH%concentration = 1E6
 
 end subroutine
 
@@ -162,6 +238,12 @@ end subroutine
 !
 ! Emission routines
 !
+
+subroutine no_emission(this, progn)
+    implicit none
+    class(isoprene_type), intent(inout) :: this
+    type(prognostics_type), intent(in) :: progn
+end subroutine
 
 ! subroutine alpha_pinene_type::compute_emission_alpha_pinene(this, progn)
 ! PURPOSE: Conpute the emission of alpha pinene at level 2 (this%emission) [# / cm^3 / s]
@@ -351,6 +433,10 @@ subroutine compute_parameterized_tendency(this, progn)
     ! Tendency (at 10 meters)
     this%parameterized_tendency(1) = this%emission - this%deposition
 
+    ! Chemical reactions.
+    call this%compute_reaction_rate()
+    this%parameterized_tendency = this%parameterized_tendency + this%reaction_rate
+
 end subroutine
 
 ! subroutine chemical_element::compute_dynamical_tendency(this, Kh)
@@ -365,6 +451,40 @@ subroutine compute_dynamical_tendency(this, Kh)
 
     ! (dC/dt)_dyn = d(Kh * dC/dz) / dz
     this%dynamical_tendency = zDerivMidLevel(Kh * zDeriv(this%concentration))
+
+end subroutine
+
+! CHEMICAL REACTIONS
+
+subroutine compute_rate_coefficient_alpha_pinene_OH(this, progn)
+    implicit none
+    class(chemical_reaction), intent(inout) :: this
+    type(prognostics_type), intent(in) :: progn
+
+    this%rate_coefficient = 1.2E-11 * exp(440 / progn%theta) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
+
+end subroutine
+
+subroutine compute_rate_alpha_pinene_OH(this, progn)
+    implicit none
+    class(chemical_reaction), intent(inout) :: this
+    type(prognostics_type), intent(in) :: progn
+
+    call this%compute_rate_coefficient(progn)
+    this%rate = this%rate_coefficient * progn%alpha_pinene%concentration(2:nz-1) * progn%OH%concentration(2:nz-1)
+
+end subroutine
+
+! CONCENTRATION TENDENCIES DUE TO CHEMICAL REACTIONS
+subroutine no_reaction(this)
+    class(chemical_element), intent(inout) :: this
+end subroutine
+
+subroutine reaction_rate_alpha_pinene(this)
+    implicit none
+    class(chemical_element), intent(inout) :: this
+
+    this%reaction_rate = -alpha_pinene_OH%rate
 
 end subroutine
 

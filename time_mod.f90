@@ -80,7 +80,7 @@ SUBROUTINE Time_Init()
   !
   ! Start to run chemistry module after 1 day to save computation time
   !
-  time_start_chemistry = 4*24*one_hour
+  time_start_chemistry = 0*24*one_hour
 
   time_start_output = 150
 
