@@ -16,7 +16,7 @@ USE grid_mod
 
 IMPLICIT NONE
 
-PRIVATE
+public
 
 !
 ! Emission variables
@@ -29,15 +29,22 @@ PRIVATE
 !
 ! Stuff needed for DLSODE, do not put them into the subroutine, iwork will cause problems
 !
-INTEGER, PARAMETER  :: neq   = 1       ! Number of equations?
+integer, parameter  :: num_chemical_elements = 25
+INTEGER, PARAMETER  :: neq   = 25       ! Number of equations?
 INTEGER, PARAMETER  :: itol  = 1       ! so that atol is a scalar, not array
 INTEGER, PARAMETER  :: itask = 1       ! for normal computation from t to tout
-INTEGER, PARAMETER  :: iopt  = 1       ! for no optional inputs
+INTEGER, PARAMETER  :: iopt  = 0       ! for no optional inputs
 INTEGER, PARAMETER  :: lrw   = 22+neq * MAX(16, neq+9) ! real workspace size
 INTEGER, PARAMETER  :: liw   = 20+neq  ! integer workspace size
 INTEGER, PARAMETER  :: mf    = 22      ! stiff, no user-provided jacobian
+integer, parameter  :: alpha_pinene_ind = 23
+integer, parameter  :: isoprene_ind = 13
 REAL(dp), PARAMETER :: rtol = 1d-5     ! relative tolerance
 REAL(dp), PARAMETER :: atol = 1d-3     ! absolute tolerance
+real(kind = 8), parameter :: H2O = 1D16
+real(kind = 8), parameter :: M = 2.4D19
+real(kind = 8), parameter :: N2 = 0.78*M
+real(kind = 8), parameter :: O2 = 0.21*M
 
 real(kind = 8), public :: foliar_density = 0.0538  ! g/cm^2
 real(kind = 8), public :: emission_factor = 100    ! ng / needle_mass_in_g / h

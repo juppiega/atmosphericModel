@@ -26,6 +26,7 @@ REAL(dp), PARAMETER :: g    = 9.81_dp          ! [m s-2], gravitational accelera
 REAL(dp), PARAMETER :: R    = 8.3144598_dp     ! [J mol-1 K-1], universal gas constant
 REAL(dp), PARAMETER :: NA   = 6.022140857e23_dp  ! [molec mol-1], Avogadro's number 
 REAL(dp), PARAMETER :: Mair = 28.96e-3_dp        ! [kg mol-1], mean molar mass of air
+REAL(dp), PARAMETER :: N_air = 2.4E19_dp        ! [1/cm^3], Number density of air molecules at surface pressure.
 REAL(dp), PARAMETER :: kb   = 1.38064852e-23_dp  ! [m2 kg s-2 K-1], Boltzmann constant
 REAL(dp), PARAMETER :: Cp = 1012.0_dp          ! [J kg-1 K-1], air specific heat at constant pressure, in reality, it has slight temperature dependency
 REAL(dp), PARAMETER :: Omega = 2*PI/(24.0_dp*60.0_dp*60.0_dp)  ! [rad s-1], Earth angular speed
@@ -36,6 +37,8 @@ integer, parameter :: leapfrog_atMidpoint = 1, leapfrog_atPreviousFullTime = 2, 
 integer, parameter :: euler = 1, leapfrog = 2, RK4 = 3
 
 logical, parameter :: output_chemistry = .true.
+logical, parameter :: box = .true.
+CHARACTER(255), PARAMETER :: outdir = 'output'
 
 !
 ! Latitude and longitude of Hyytiälä:

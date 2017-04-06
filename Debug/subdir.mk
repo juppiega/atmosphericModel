@@ -17,6 +17,11 @@ F90_SRCS += \
 ../radiation_mod.f90 \
 ../time_mod.f90 
 
+F_SRCS += \
+../opkda1.f \
+../opkda2.f \
+../opkdmain.f 
+
 OBJS += \
 ./boundary_conditions_mod.o \
 ./chemistry_mod.o \
@@ -25,6 +30,9 @@ OBJS += \
 ./grid_mod.o \
 ./main.o \
 ./meteorology_mod.o \
+./opkda1.o \
+./opkda2.o \
+./opkdmain.o \
 ./parameterizations_mod.o \
 ./parameters_mod.o \
 ./prognostics_mod.o \
@@ -36,7 +44,7 @@ OBJS += \
 %.o: ../%.f90
 	@echo 'Building file: $<'
 	@echo 'Invoking: GNU Fortran Compiler'
-	gfortran -funderscoring -O0 -g -Wall -c -fmessage-length=0 -o "$@" "$<"
+	gfortran -funderscoring -O0 -g -fcheck=all -Wall -c -fmessage-length=0 -fmax-errors=10 -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 
@@ -50,11 +58,24 @@ dynamics_mod.o: ../dynamics_mod.f90 derivatives_mod.o grid_mod.o parameters_mod.
 
 grid_mod.o: ../grid_mod.f90 parameters_mod.o
 
-main.o: ../main.f90 boundary_conditions_mod.o dynamics_mod.o grid_mod.o parameterizations_mod.o parameters_mod.o prognostics_mod.o time_mod.o
+main.o: ../main.f90 boundary_conditions_mod.o dynamics_mod.o grid_mod.o parameterizations_mod.o parameters_mod.o prognostics_mod.o radiation_mod.o time_mod.o
 
 meteorology_mod.o: ../meteorology_mod.f90 grid_mod.o parameters_mod.o time_mod.o
 
-parameterizations_mod.o: ../parameterizations_mod.f90 chemistry_mod.o prognostics_mod.o radiation_mod.o time_mod.o
+%.o: ../%.f
+	@echo 'Building file: $<'
+	@echo 'Invoking: GNU Fortran Compiler'
+	gfortran -funderscoring -O0 -g -fcheck=all -Wall -c -fmessage-length=0 -fmax-errors=10 -o "$@" "$<"
+	@echo 'Finished building: $<'
+	@echo ' '
+
+opkda1.o: ../opkda1.f
+
+opkda2.o: ../opkda2.f
+
+opkdmain.o: ../opkdmain.f
+
+parameterizations_mod.o: ../parameterizations_mod.f90 chemistry_mod.o parameters_mod.o prognostics_mod.o radiation_mod.o time_mod.o
 
 parameters_mod.o: ../parameters_mod.f90
 
