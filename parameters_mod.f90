@@ -30,6 +30,7 @@ REAL(dp), PARAMETER :: N_air = 2.4E19_dp        ! [1/cm^3], Number density of ai
 REAL(dp), PARAMETER :: kb   = 1.38064852e-23_dp  ! [m2 kg s-2 K-1], Boltzmann constant
 REAL(dp), PARAMETER :: Cp = 1012.0_dp          ! [J kg-1 K-1], air specific heat at constant pressure, in reality, it has slight temperature dependency
 REAL(dp), PARAMETER :: Omega = 2*PI/(24.0_dp*60.0_dp*60.0_dp)  ! [rad s-1], Earth angular speed
+real(kind = 8), parameter :: surf_pressure = 101325 ![Pa]
 
 real(kind = 8) :: ug = 10, vg = 0, thetaUpperBoundary = 303.15 ! Boundary conditions
 

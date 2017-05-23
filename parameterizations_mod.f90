@@ -36,7 +36,7 @@ contains
         type(prognostics_type), intent(inout) :: progn
         real(kind = 8), intent(in) :: PAR_val ! Predefined PAR value for testing. If PAR_val < 0, the value is computed using a routine.
         integer :: level, chemical
-        real(kind = 8) :: concentrations(num_chemical_elements), concentration_tendencies(num_chemical_elements)
+        real(kind = 8) :: concentrations(num_chemical_elements), concentration_tendencies(num_chemical_elements), t
         integer :: input_array(2), istate = 1
 
         if (PAR_val < 0) then
@@ -48,7 +48,8 @@ contains
         call compute_aerodynamic_resistance(progn) ! r_a
 
         input_array(1) = num_chemical_elements
-        do level = 3, 3 ! TESTAUS
+        !print*, time
+        do level = 2, nz-1 ! TESTAUS
             istate = 1
             input_array(2) = level
             concentration_tendencies = 0
@@ -79,10 +80,12 @@ contains
             concentrations(24) = progn%HNO3_P%concentration(level)
             concentrations(25) = progn%ELVOC%concentration(level)
 
-
-            call dlsode(f, input_array, concentrations, time, time+dt_chem, itol, rtol, atol, itask, &
+            t = time
+            call dlsode(f, input_array, concentrations, t, t+dt_chem, itol, rtol, atol, itask, &
                         istate, iopt, rwork, lrw, iwork, liw, jac, mf)
             !call f(input_array, time, concentrations, concentration_tendencies)
+            !print *, concentration_tendencies
+            !stop
 
             progn%O3%concentration(level) = concentrations(1)
             progn%O1D%concentration(level) = concentrations(2)
@@ -111,7 +114,7 @@ contains
             progn%ELVOC%concentration(level) = concentrations(25)
 
         end do
-
+        !print*, time
         !print *, concentrations
         !print *, get_exp_coszen(time, daynumber, latitude)
 
@@ -134,20 +137,20 @@ contains
             level = iarray(2)
             !print *, level
 
-            progn%O3%concentration(level) = 24E-9 * N_air
+            progn%O3%concentration(level) = 24E-9 * progn%M(level)
             progn%O1D%concentration(level) = y(2)
             progn%OH%concentration(level) = y(3)
             progn%REST%concentration(level) = y(4)
-            progn%NO2%concentration(level) = 0.2E-9 * N_air
-            progn%NO%concentration(level) = 0.07E-9 * N_air
+            progn%NO2%concentration(level) = 0.2E-9 * progn%M(level)
+            progn%NO%concentration(level) = 0.07E-9 * progn%M(level)
             progn%CH2O%concentration(level) = y(7)
             progn%HO2%concentration(level) = y(8)
-            progn%CO%concentration(level) = 100E-9 * N_air
+            progn%CO%concentration(level) = 100E-9 * progn%M(level)
             progn%CO2%concentration(level) = y(10)
-            progn%CH4%concentration(level) = 1759E-9 * N_air
+            progn%CH4%concentration(level) = 1759E-9 * progn%M(level)
             progn%CH3O2%concentration(level) = y(12)
             if (box) then
-                progn%isoprene%concentration(level) = 2.2E-9 * N_air
+                progn%isoprene%concentration(level) = 2.2E-9 * progn%M(level)
             else
                 progn%isoprene%concentration(level) = y(13)
             end if
@@ -157,11 +160,11 @@ contains
             progn%HNO3%concentration(level) = y(17)
             progn%NO3%concentration(level) = y(18)
             progn%N2O5%concentration(level) = y(19)
-            progn%SO2%concentration(level) = 0.5E-9 *N_air
+            progn%SO2%concentration(level) = 0.5E-9 *progn%M(level)
             progn%H2SO4_P%concentration(level) = y(21)
             progn%H2SO4%concentration(level) = y(22)
             if (box) then
-                progn%alpha_pinene%concentration(level) = 2.2E-9 * N_air
+                progn%alpha_pinene%concentration(level) = 2.2E-9 * progn%M(level)
             else
                 progn%alpha_pinene%concentration(level) = y(23)
             end if

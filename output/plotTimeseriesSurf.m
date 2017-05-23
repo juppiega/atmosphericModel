@@ -1,4 +1,4 @@
-function plotTimeseriesSurf(varname)
+function plotTimeseriesSurf(varname, chemname)
 
   load('h.dat')
   load('time.dat')
@@ -11,12 +11,10 @@ function plotTimeseriesSurf(varname)
   elseif strcmpi(varname,'theta')
     load('theta.dat')
     var = theta;
-  elseif strcmpi(varname,'alpha_pinene')
-    load('alpha_pinene.dat')
-    var = alpha_pinene;
-  elseif strcmpi(varname,'isoprene')
-    load('isoprene.dat')
-    var = isoprene;
+  elseif strcmpi(varname,'chemistry')
+    var = load([chemname,'.dat']);
+    var = var(time >= 3, :);
+    time = time(time > 3);
   elseif strcmpi(varname,'Km')
     load('Km.dat')
     var = Km;
@@ -45,7 +43,11 @@ function plotTimeseriesSurf(varname)
   colorbar
   xlabel('Time [d]', 'fontsize', 15)
   ylabel('z [m]', 'fontsize', 15)
-  title(varname, 'fontsize', 15)
+  if nargin == 1
+    title(varname, 'fontsize', 15)
+  else
+    title(chemname, 'fontsize', 15)
+  end
   set(gca,'fontsize',15)
   ylim([0, 3000])
   

@@ -32,6 +32,7 @@ PROGRAM main
     use dynamics_mod
     use parameterizations_mod
     use prognostics_mod
+    use aerosol_mod
 
     !-----------------------------------------------------------------------------------------
     ! Variable declaration
@@ -45,6 +46,11 @@ PROGRAM main
     !-----------------------------------------------------------------------------------------
     CALL time_init()         ! initialize time, time step, date
 
+    if (box) then
+        call test_aerosol()
+        stop 'Aerosol tested'
+    end if
+
     CALL dynamics_init()     ! Initialize dynamics
 
     call parameterizations_init() ! Initialize parameterizations
@@ -56,20 +62,25 @@ PROGRAM main
     CALL write_files(progn, time)   ! write initial values
 
 
+
+
     !-----------------------------------------------------------------------------------------
     ! Start main loop
     !-----------------------------------------------------------------------------------------
     DO WHILE (time <= time_end)
 
+        if (.not. box) then
         ! Set prognostics boundary conditions
-        !CALL set_boundary_conditions(progn, time)
+            CALL set_boundary_conditions(progn, time)
 
         ! Compute values at next time step: u(n+1) = u(n) + dt * f(n), where f = du/dt
-        !call compute_dynamics(progn, euler_step) ! Compute dynamics tendencies (turbulent fluxes)
-        !call compute_parameterizations(progn)    ! Compute parameterizations (chemistry emissions, depositions)
-        !call progn%euler_next()                  ! Advance to the next timestep using forward Euler
-
-        call test_chemistry(progn)
+            call compute_dynamics(progn, euler_step) ! Compute dynamics tendencies (turbulent fluxes)
+            call progn%compute_diagnostics(surf_pressure)
+            call compute_parameterizations(progn)    ! Compute parameterizations (chemistry emissions, depositions)
+            call progn%euler_next()                  ! Advance to the next timestep using forward Euler
+        else
+            call test_chemistry(progn)
+         end if
 
 
         !---------------------------------------------------------------------------------------
@@ -80,7 +91,7 @@ PROGRAM main
         ! Write data to files and time infomation to screen
         !
         IF ( time >= time_start_output .and. time >= previous_output_time + dt_output ) THEN
-            WRITE(*, '(a8, f12.8, a6)') 'time = ', time/one_hour, '  hours'
+            WRITE(*, '(a8, f12.8, a10)') 'time = ', time/one_hour, '  hours'
             CALL write_files(progn, time)
             previous_output_time = time
         END IF
