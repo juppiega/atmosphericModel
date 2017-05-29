@@ -4,6 +4,7 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 F90_SRCS += \
+../aerosol_mod.f90 \
 ../boundary_conditions_mod.f90 \
 ../chemistry_mod.f90 \
 ../derivatives_mod.f90 \
@@ -23,6 +24,7 @@ F_SRCS += \
 ../opkdmain.f 
 
 OBJS += \
+./aerosol_mod.o \
 ./boundary_conditions_mod.o \
 ./chemistry_mod.o \
 ./derivatives_mod.o \
@@ -44,9 +46,11 @@ OBJS += \
 %.o: ../%.f90
 	@echo 'Building file: $<'
 	@echo 'Invoking: GNU Fortran Compiler'
-	gfortran -funderscoring -O0 -g -fcheck=all -Wall -c -fmessage-length=0 -fmax-errors=10 -o "$@" "$<"
+	gfortran -funderscoring -O3 -g -Wall -c -fmessage-length=0 -fmax-errors=10 -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
+
+aerosol_mod.o: ../aerosol_mod.f90 parameters_mod.o time_mod.o
 
 boundary_conditions_mod.o: ../boundary_conditions_mod.f90 parameters_mod.o prognostics_mod.o
 
@@ -58,14 +62,14 @@ dynamics_mod.o: ../dynamics_mod.f90 derivatives_mod.o grid_mod.o parameters_mod.
 
 grid_mod.o: ../grid_mod.f90 parameters_mod.o
 
-main.o: ../main.f90 boundary_conditions_mod.o dynamics_mod.o grid_mod.o parameterizations_mod.o parameters_mod.o prognostics_mod.o radiation_mod.o time_mod.o
+main.o: ../main.f90 aerosol_mod.o boundary_conditions_mod.o dynamics_mod.o grid_mod.o parameterizations_mod.o parameters_mod.o prognostics_mod.o radiation_mod.o time_mod.o
 
 meteorology_mod.o: ../meteorology_mod.f90 grid_mod.o parameters_mod.o time_mod.o
 
 %.o: ../%.f
 	@echo 'Building file: $<'
 	@echo 'Invoking: GNU Fortran Compiler'
-	gfortran -funderscoring -O0 -g -fcheck=all -Wall -c -fmessage-length=0 -fmax-errors=10 -o "$@" "$<"
+	gfortran -funderscoring -O3 -g -Wall -c -fmessage-length=0 -fmax-errors=10 -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 

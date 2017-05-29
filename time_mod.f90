@@ -62,7 +62,7 @@ SUBROUTINE Time_Init()
   ! Simulation time period
   !
   time_start = 0
-  time_end = 86400*5 + time_start
+  time_end = 86400 + time_start
 
   !
   ! Time steps
@@ -80,7 +80,7 @@ SUBROUTINE Time_Init()
   !
   ! Start to run chemistry module after 1 day to save computation time
   !
-  time_start_chemistry = 0*24*one_hour + time_start
+  time_start_chemistry = 3*24*one_hour + time_start
 
   time_start_output = dt_output + time_start
 

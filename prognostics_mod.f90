@@ -21,7 +21,7 @@ module prognostics_mod
     ! 1. Derive a new type from chemical_element and write reaction equations
     ! 2. Add it to prognostics_type
     ! 3. Add it to prognostics_type::init_chemical_elements
-    ! (4. Add it to prognostics_type::euler_next)
+    ! 4. Add it to prognostics_type::euler_next and dynamics_mod
     ! 5. Add it to set_boundary_conditions
     ! 6. Add it to parameterizations_mod
     ! 7. Add it to write_files
@@ -269,6 +269,7 @@ module prognostics_mod
     type prognostics_type
         real(kind = 8), dimension(nz) :: ua, ua_mid, va, va_mid, theta, theta_mid ! Prognostics (*_mid are for leapfrog)
         real(kind = 8), dimension(nz-2) :: dudt, dvdt, dThetaDt ! Tendencies [m/s^2] and [K/s]
+        real(kind = 8), dimension(nz) :: T, M, N2, O2, pressure
         type(alpha_pinene_type) :: alpha_pinene                 ! Instantation of alpha_pinene
         type(isoprene_type) :: isoprene                         ! Instantation of isoprene
         type(OH_type) :: OH
@@ -299,6 +300,7 @@ module prognostics_mod
         procedure :: leapfrog_next                              ! Leapfrog to next timestep (NOT FULLY IMPLEMENTED)
         procedure :: euler_next                                 ! Take an Euler step
         procedure :: init_chemical_elements                     ! Initialize the chemical components
+        procedure :: compute_diagnostics
     end type prognostics_type
 
 
@@ -623,11 +625,32 @@ contains
         this%theta(updInd) = this%theta(updInd) + dt * this%dThetaDt
 
         ! Update chemical components
-        !this%alpha_pinene%concentration(updInd) = this%alpha_pinene%concentration(updInd) + &
-        !    dt * (this%alpha_pinene%dynamical_tendency + this%alpha_pinene%parameterized_tendency)
+        this%O3%concentration(updInd) = this%O3%concentration(updInd) +  dt * (this%O3%dynamical_tendency)
+        this%O1D%concentration(updInd) = this%O1D%concentration(updInd) +  dt * (this%O1D%dynamical_tendency)
+        this%OH%concentration(updInd) = this%OH%concentration(updInd) +  dt * (this%OH%dynamical_tendency)
+        this%REST%concentration(updInd) = this%REST%concentration(updInd) +  dt * (this%REST%dynamical_tendency)
+        this%NO2%concentration(updInd) = this%NO2%concentration(updInd) +  dt * (this%NO2%dynamical_tendency)
+        this%NO%concentration(updInd) = this%NO%concentration(updInd) +  dt * (this%NO%dynamical_tendency)
+        this%CH2O%concentration(updInd) = this%CH2O%concentration(updInd) +  dt * (this%CH2O%dynamical_tendency)
+        this%HO2%concentration(updInd) = this%HO2%concentration(updInd) +  dt * (this%HO2%dynamical_tendency)
+        this%CO%concentration(updInd) = this%CO%concentration(updInd) +  dt * (this%CO%dynamical_tendency)
+        this%CO2%concentration(updInd) = this%CO2%concentration(updInd) +  dt * (this%CO2%dynamical_tendency)
+        this%CH4%concentration(updInd) = this%CH4%concentration(updInd) +  dt * (this%CH4%dynamical_tendency)
+        this%CH3O2%concentration(updInd) = this%CH3O2%concentration(updInd) +  dt * (this%CH3O2%dynamical_tendency)
+        this%isoprene%concentration(updInd) = this%isoprene%concentration(updInd) +  dt * (this%isoprene%dynamical_tendency)
+        this%RO2%concentration(updInd) = this%RO2%concentration(updInd) +  dt * (this%RO2%dynamical_tendency)
+        this%MVK%concentration(updInd) = this%MVK%concentration(updInd) +  dt * (this%MVK%dynamical_tendency)
+        this%H2O2%concentration(updInd) = this%H2O2%concentration(updInd) +  dt * (this%H2O2%dynamical_tendency)
+        this%HNO3%concentration(updInd) = this%HNO3%concentration(updInd) +  dt * (this%HNO3%dynamical_tendency)
+        this%NO3%concentration(updInd) = this%NO3%concentration(updInd) +  dt * (this%NO3%dynamical_tendency)
+        this%N2O5%concentration(updInd) = this%N2O5%concentration(updInd) +  dt * (this%N2O5%dynamical_tendency)
+        this%SO2%concentration(updInd) = this%SO2%concentration(updInd) +  dt * (this%SO2%dynamical_tendency)
+        this%H2SO4%concentration(updInd) = this%H2SO4%concentration(updInd) +  dt * (this%H2SO4%dynamical_tendency)
+        this%H2SO4_P%concentration(updInd) = this%H2SO4_P%concentration(updInd) +  dt * (this%H2SO4_P%dynamical_tendency)
+        this%alpha_pinene%concentration(updInd) = this%alpha_pinene%concentration(updInd)+dt*this%alpha_pinene%dynamical_tendency
+        this%HNO3_P%concentration(updInd) = this%HNO3_P%concentration(updInd) +  dt * (this%HNO3_P%dynamical_tendency)
+        this%ELVOC%concentration(updInd) = this%ELVOC%concentration(updInd) +  dt * (this%ELVOC%dynamical_tendency)
 
-        !this%isoprene%concentration(updInd) = this%isoprene%concentration(updInd) + &
-       !     dt * (this%isoprene%dynamical_tendency + this%isoprene%parameterized_tendency)
 
     end subroutine
 
@@ -665,16 +688,35 @@ contains
         call this%ELVOC%init(0.0_dp, 0.0_dp, 0.0_dp, 'ELVOC')
 
 
-        this%O3%concentration = 24E-9 * N_air
-        this%NO2%concentration = 0.2E-9 * N_air
-        this%NO%concentration = 0.07E-9 * N_air
-        this%CO%concentration = 100E-9 * N_air
-        this%CH4%concentration = 1759E-9 * N_air
-        this%SO2%concentration = 0.5E-9 *N_air
+        this%O3%concentration = O3_conc
+        this%NO2%concentration = NO2_conc
+        this%NO%concentration = NO_conc
+        this%CO%concentration = CO_conc
+        this%CH4%concentration = CH4_conc
+        this%SO2%concentration = SO2_conc
         if (box) then
             this%isoprene%concentration = 2.2E-9 * N_air
             this%alpha_pinene%concentration = 2.2E-9 * N_air
         end if
+
+    end subroutine
+
+    subroutine compute_diagnostics(this, P0)
+        implicit none
+        class(prognostics_type), intent(inout) :: this
+        real(kind = 8), intent(in) :: P0 ! Surface pressure [Pa]
+        integer :: i
+
+        this%T = this%theta - (g/Cp) * z
+
+        this%pressure(1) = P0
+        do i = 2, nz
+            this%pressure(i) = this%pressure(i-1) * exp(-(z(i)-z(i-1))*Mair*g / (R * (this%T(i-1)+this%T(i))/2))
+        end do
+
+        this%M = this%pressure / (R*this%T) * NA * 1D-6
+        this%O2 = 0.21*this%M
+        this%N2 = 0.78*this%M
 
     end subroutine
 
@@ -897,7 +939,7 @@ contains
         real(kind = 8), parameter :: Ts = 303.15 ! [K]
         real(kind = 8) :: adjust_factor, T
 
-        T = progn%theta(2) ! Temperature at level 2
+        T = progn%T(2) ! Temperature at level 2
         adjust_factor = exp(B * (T - Ts) ) ! Adjust emission depending on temperature
 
         ! Compute emission from vegetation.
@@ -920,7 +962,7 @@ contains
         ! Local variables
         real(kind = 8) :: adjust_factor, T, C_L, C_T
 
-        T = progn%theta(2) ! Temperature at level 2
+        T = progn%T(2) ! Temperature at level 2
 
         ! Adjust emission depending on radiation and temperature.
         C_L = (a * c_L1 * PAR) / sqrt(1 + a**2 * PAR**2)
@@ -929,6 +971,7 @@ contains
 
         ! Compute emission from vegetation.
         this%emission = compute_vegetation_emission(adjust_factor, this%molar_mass)
+
 
     end subroutine compute_emission_isoprene
 
@@ -1006,7 +1049,7 @@ contains
         real(kind = 8), parameter :: M_water = 18.01528 ! [g/mol]
         real(kind = 8), parameter :: r_ac = 2000 ! [s/m]
 
-        T = progn%theta(2) - 273.15 ! [C]
+        T = progn%T(2) - 273.15 ! [C]
         G = PAR/0.45 * 0.219 ! Solar radiation [W/m^2]
 
         ! Compute component resistances, which depend on the solar radiation
@@ -1140,7 +1183,7 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
-        this%rate_coefficient(level) = 1.63D-10 * exp(60.0_dp / progn%theta(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
+        this%rate_coefficient(level) = 1.63D-10 * exp(60.0_dp / progn%T(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
 
     end subroutine
 
@@ -1150,7 +1193,7 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
-        this%rate_coefficient(level) = 2.15D-11 * exp(110.0_dp / progn%theta(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
+        this%rate_coefficient(level) = 2.15D-11 * exp(110.0_dp / progn%T(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
 
     end subroutine
 
@@ -1160,7 +1203,7 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
-        this%rate_coefficient(level) = 3.3D-11 * exp(55.0_dp / progn%theta(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
+        this%rate_coefficient(level) = 3.3D-11 * exp(55.0_dp / progn%T(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
 
     end subroutine
 
@@ -1200,7 +1243,7 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
-        this%rate_coefficient(level) = 2.45D-12 * exp(-1775 / progn%theta(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
+        this%rate_coefficient(level) = 2.45D-12 * exp(-1775 / progn%T(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
 
     end subroutine
 
@@ -1230,7 +1273,7 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
-        this%rate_coefficient(level) = 3.5D-12 * exp(250 / progn%theta(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
+        this%rate_coefficient(level) = 3.5D-12 * exp(250 / progn%T(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
 
     end subroutine
 
@@ -1240,7 +1283,7 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
-        this%rate_coefficient(level) = 2.8D-12 * exp(300 / progn%theta(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
+        this%rate_coefficient(level) = 2.8D-12 * exp(300 / progn%T(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
 
     end subroutine
 
@@ -1260,7 +1303,7 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
-        this%rate_coefficient(level) = 5.5D-12 * exp(125 / progn%theta(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
+        this%rate_coefficient(level) = 5.5D-12 * exp(125 / progn%T(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
 
     end subroutine
 
@@ -1270,9 +1313,9 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
-        this%rate_coefficient(level) = ((2.2D-13*EXP(600/progn%theta(level)))+ &
-                                        (1.9D-33*EXP(980/progn%theta(level))*M))* &
-                                        (1+(1+1.4D-21*EXP(2200/progn%theta(level))*H2O)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
+        this%rate_coefficient(level) = ((2.2D-13*EXP(600/progn%T(level)))+ &
+                                        (1.9D-33*EXP(980/progn%T(level))*progn%M(level)))* &
+                                        (1+(1+1.4D-21*EXP(2200/progn%T(level))*H2O)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
 
     end subroutine
 
@@ -1282,7 +1325,7 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
-        this%rate_coefficient(level) = 4.1D-13 * exp(750 / progn%theta(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
+        this%rate_coefficient(level) = 4.1D-13 * exp(750 / progn%T(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
 
     end subroutine
 
@@ -1302,7 +1345,7 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
-        this%rate_coefficient(level) = 3.5D-12 * exp(340 / progn%theta(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
+        this%rate_coefficient(level) = 3.5D-12 * exp(340 / progn%T(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
 
     end subroutine
 
@@ -1312,7 +1355,7 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
-        this%rate_coefficient(level) = 3D-12 * exp(-1500 / progn%theta(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
+        this%rate_coefficient(level) = 3D-12 * exp(-1500 / progn%T(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
 
     end subroutine
 
@@ -1322,7 +1365,7 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
-        this%rate_coefficient(level) = 4.8D-11 * exp(250 / progn%theta(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
+        this%rate_coefficient(level) = 4.8D-11 * exp(250 / progn%T(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
 
     end subroutine
 
@@ -1332,7 +1375,7 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
-        this%rate_coefficient(level) = 2.9D-12 * exp(-160 / progn%theta(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
+        this%rate_coefficient(level) = 2.9D-12 * exp(-160 / progn%T(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
 
     end subroutine
 
@@ -1342,7 +1385,7 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
-        this%rate_coefficient(level) = 1.8D-11 * exp(110 / progn%theta(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
+        this%rate_coefficient(level) = 1.8D-11 * exp(110 / progn%T(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
 
     end subroutine
 
@@ -1352,7 +1395,7 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
-        this%rate_coefficient(level) = 1.4D-13 * exp(-2470 / progn%theta(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
+        this%rate_coefficient(level) = 1.4D-13 * exp(-2470 / progn%T(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
 
     end subroutine
 
@@ -1362,10 +1405,10 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
-        this%rate_coefficient(level) = (0.35*(3.6D-30*(progn%theta(level)/300)**(-4.1)*M)* &
-                                        (1.9D-12*(progn%theta(level)/300)**0.2)) / &
-                                        ((3.6D-30*(progn%theta(level)/300)**(-4.1)*M)+ &
-                                        (1.9D-12*(progn%theta(level)/300)**0.2))  ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
+        this%rate_coefficient(level) = (0.35*(3.6D-30*(progn%T(level)/300)**(-4.1)*progn%M(level))* &
+                                        (1.9D-12*(progn%T(level)/300)**0.2)) / &
+                                        ((3.6D-30*(progn%T(level)/300)**(-4.1)*progn%M(level))+ &
+                                        (1.9D-12*(progn%T(level)/300)**0.2))  ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
 
     end subroutine
 
@@ -1375,10 +1418,10 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
-        this%rate_coefficient(level) = (0.35*(1.3D-3*(progn%theta(level)/300)**(-3.5)*EXP(-11000/progn%theta(level))*M)* &
-                                        (9.7D14*(progn%theta(level)/300)**0.1*EXP(- 11080/progn%theta(level)))) / &
-                                        ((1.3D-3*(progn%theta(level)/300)**(-3.5)*EXP(-11000/progn%theta(level))*M)+ &
-                                        (9.7D14*(progn%theta(level)/300)**0.1*EXP(- 11080/progn%theta(level)))) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
+        this%rate_coefficient(level) = (0.35*(1.3D-3*(progn%T(level)/300)**(-3.5)*EXP(-11000/progn%T(level))*progn%M(level))* &
+                                        (9.7D14*(progn%T(level)/300)**0.1*EXP(- 11080/progn%T(level)))) / &
+                                        ((1.3D-3*(progn%T(level)/300)**(-3.5)*EXP(-11000/progn%T(level))*progn%M(level))+ &
+                                        (9.7D14*(progn%T(level)/300)**0.1*EXP(- 11080/progn%T(level)))) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
 
     end subroutine
 
@@ -1408,7 +1451,7 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
-        this%rate_coefficient(level) = 2.03D-16*(progn%theta(level)/300)**4.57*EXP(693/progn%theta(level)) ! TODO
+        this%rate_coefficient(level) = 2.03D-16*(progn%T(level)/300)**4.57*EXP(693/progn%T(level)) ! TODO
 
     end subroutine
 
@@ -1448,7 +1491,7 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
-        this%rate_coefficient(level) = 1.2D-11 * exp(440 / progn%theta(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
+        this%rate_coefficient(level) = 1.2D-11 * exp(440 / progn%T(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
 
     end subroutine
 
@@ -1458,7 +1501,7 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
-        this%rate_coefficient(level) = 6.3D-16 * exp(-580 / progn%theta(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
+        this%rate_coefficient(level) = 6.3D-16 * exp(-580 / progn%T(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
 
     end subroutine
 
@@ -1468,7 +1511,7 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
-        this%rate_coefficient(level) = 1.03D-14 * exp(-1995 / progn%theta(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
+        this%rate_coefficient(level) = 1.03D-14 * exp(-1995 / progn%T(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
 
     end subroutine
 
@@ -1510,7 +1553,7 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
-        this%rate(level) = this%rate_coefficient(level) * concentration(progn, level, progn%O1D) * N2
+        this%rate(level) = this%rate_coefficient(level) * concentration(progn, level, progn%O1D) * progn%N2(level)
 
     end subroutine
 
@@ -1520,7 +1563,7 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
-        this%rate(level) = this%rate_coefficient(level) * concentration(progn, level, progn%O1D) * O2
+        this%rate(level) = this%rate_coefficient(level) * concentration(progn, level, progn%O1D) * progn%O2(level)
 
     end subroutine
 

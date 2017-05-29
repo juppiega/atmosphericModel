@@ -42,9 +42,13 @@ integer, parameter  :: isoprene_ind = 13
 REAL(dp), PARAMETER :: rtol = 1d-5     ! relative tolerance
 REAL(dp), PARAMETER :: atol = 1d-3     ! absolute tolerance
 real(kind = 8), parameter :: H2O = 1D16
-real(kind = 8), parameter :: M = 2.4D19
-real(kind = 8), parameter :: N2 = 0.78*M
-real(kind = 8), parameter :: O2 = 0.21*M
+real(kind = 8), parameter :: M_surf = 2.4D10 ! [*10^9 / cm3]
+real(kind = 8), parameter :: O3_conc = 24*M_surf
+real(kind = 8), parameter :: CO_conc = 100*M_surf
+real(kind = 8), parameter :: NO2_conc = 0.2*M_surf
+real(kind = 8), parameter :: NO_conc = 0.07*M_surf
+real(kind = 8), parameter :: CH4_conc = 1759*M_surf
+real(kind = 8), parameter :: SO2_conc = 0.5*M_surf
 
 real(kind = 8), public :: foliar_density = 0.0538  ! g/cm^2
 real(kind = 8), public :: emission_factor = 100    ! ng / needle_mass_in_g / h

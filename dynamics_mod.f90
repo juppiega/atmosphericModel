@@ -178,8 +178,32 @@ subroutine compute_dynamics(progn, stepType)
     progn%dThetaDt = compute_thetaTendency() ! Equation (3)
 
     ! Compute chemistry dynamical tendencies every timestep, but the parameterizations (in parameterizations_mod) only every dt_chem
-    call progn % alpha_pinene % compute_dynamical_tendency(Kh_)
+    call progn % O3     % compute_dynamical_tendency(Kh_)
+    call progn % O1D     % compute_dynamical_tendency(Kh_)
+    call progn % OH     % compute_dynamical_tendency(Kh_)
+    call progn % REST     % compute_dynamical_tendency(Kh_)
+    call progn % NO2     % compute_dynamical_tendency(Kh_)
+    call progn % NO     % compute_dynamical_tendency(Kh_)
+    call progn % CH2O     % compute_dynamical_tendency(Kh_)
+    call progn % HO2     % compute_dynamical_tendency(Kh_)
+    call progn % CO     % compute_dynamical_tendency(Kh_)
+    call progn % CO2     % compute_dynamical_tendency(Kh_)
+    call progn % CH4     % compute_dynamical_tendency(Kh_)
+    call progn % CH3O2     % compute_dynamical_tendency(Kh_)
     call progn % isoprene     % compute_dynamical_tendency(Kh_)
+    call progn % RO2     % compute_dynamical_tendency(Kh_)
+    call progn % MVK     % compute_dynamical_tendency(Kh_)
+    call progn % H2O2     % compute_dynamical_tendency(Kh_)
+    call progn % HNO3     % compute_dynamical_tendency(Kh_)
+    call progn % NO3     % compute_dynamical_tendency(Kh_)
+    call progn % N2O5     % compute_dynamical_tendency(Kh_)
+    call progn % SO2     % compute_dynamical_tendency(Kh_)
+    call progn % H2SO4     % compute_dynamical_tendency(Kh_)
+    call progn % H2SO4_P     % compute_dynamical_tendency(Kh_)
+    call progn % alpha_pinene     % compute_dynamical_tendency(Kh_)
+    call progn % HNO3_P     % compute_dynamical_tendency(Kh_)
+    call progn % ELVOC     % compute_dynamical_tendency(Kh_)
+
 
     ! Output Km, Kh, Ri to files for diagnostics.
     IF ( time >= time_start_output .and. MOD( NINT((time - time_start)*10.0), NINT(dt_output*10.0)) == 0 ) THEN
