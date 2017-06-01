@@ -46,7 +46,7 @@ OBJS += \
 %.o: ../%.f90
 	@echo 'Building file: $<'
 	@echo 'Invoking: GNU Fortran Compiler'
-	gfortran -funderscoring -O3 -g -Wall -c -fmessage-length=0 -fmax-errors=10 -o "$@" "$<"
+	gfortran -funderscoring -O0 -g -Wall -c -fmessage-length=0 -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 
@@ -69,7 +69,7 @@ meteorology_mod.o: ../meteorology_mod.f90 grid_mod.o parameters_mod.o time_mod.o
 %.o: ../%.f
 	@echo 'Building file: $<'
 	@echo 'Invoking: GNU Fortran Compiler'
-	gfortran -funderscoring -O3 -g -Wall -c -fmessage-length=0 -fmax-errors=10 -o "$@" "$<"
+	gfortran -funderscoring -O0 -g -Wall -c -fmessage-length=0 -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 

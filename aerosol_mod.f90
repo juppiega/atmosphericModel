@@ -69,7 +69,7 @@ CONTAINS
     subroutine output_aerosols()
         implicit none
         logical :: first_call = .true.
-        integer :: PM_unit, PN_unit, PV_unit, time_unit
+        integer, save :: PM_unit, PN_unit, PV_unit, time_unit
 
         if (first_call) then
             OPEN(FILE = TRIM(ADJUSTL(outdir))//adjustl('/')//adjustl(trim('PM'))//adjustl('.dat')  , &
@@ -81,6 +81,7 @@ CONTAINS
             OPEN(FILE = TRIM(ADJUSTL(outdir))//adjustl('/')//adjustl(trim('time'))//adjustl('.dat')  , &
                 STATUS = 'REPLACE', ACTION = 'WRITE', newunit=time_unit)
             first_call = .false.
+!            print *, 'First call to aer. output'
         end if
 
         WRITE(PM_unit, *) PM
