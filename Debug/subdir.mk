@@ -46,7 +46,7 @@ OBJS += \
 %.o: ../%.f90
 	@echo 'Building file: $<'
 	@echo 'Invoking: GNU Fortran Compiler'
-	gfortran -funderscoring -O0 -g -Wall -c -fmessage-length=0 -o "$@" "$<"
+	gfortran -funderscoring -O0 -g3 -Wall -c -fmessage-length=0 -fcheck=all -fmax-errors=15 -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 
@@ -69,7 +69,7 @@ meteorology_mod.o: ../meteorology_mod.f90 grid_mod.o parameters_mod.o time_mod.o
 %.o: ../%.f
 	@echo 'Building file: $<'
 	@echo 'Invoking: GNU Fortran Compiler'
-	gfortran -funderscoring -O0 -g -Wall -c -fmessage-length=0 -o "$@" "$<"
+	gfortran -funderscoring -O0 -g3 -Wall -c -fmessage-length=0 -fcheck=all -fmax-errors=15 -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 
@@ -79,11 +79,11 @@ opkda2.o: ../opkda2.f
 
 opkdmain.o: ../opkdmain.f
 
-parameterizations_mod.o: ../parameterizations_mod.f90 chemistry_mod.o parameters_mod.o prognostics_mod.o radiation_mod.o time_mod.o
+parameterizations_mod.o: ../parameterizations_mod.f90 aerosol_mod.o chemistry_mod.o parameters_mod.o prognostics_mod.o radiation_mod.o time_mod.o
 
 parameters_mod.o: ../parameters_mod.f90
 
-prognostics_mod.o: ../prognostics_mod.f90 chemistry_mod.o derivatives_mod.o grid_mod.o parameters_mod.o radiation_mod.o time_mod.o
+prognostics_mod.o: ../prognostics_mod.f90 aerosol_mod.o chemistry_mod.o derivatives_mod.o grid_mod.o parameters_mod.o radiation_mod.o time_mod.o
 
 radiation_mod.o: ../radiation_mod.f90 parameters_mod.o time_mod.o
 

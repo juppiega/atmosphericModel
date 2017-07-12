@@ -3,6 +3,7 @@
 module parameterizations_mod
     use radiation_mod
     use chemistry_mod
+    use aerosol_mod
     use prognostics_mod
     use time_mod
     implicit none
@@ -22,12 +23,25 @@ contains
         use time_mod
         implicit none
         type(prognostics_type), intent(inout) :: progn
+        integer :: i
 
         ! Compute chemistry parameterizations (emission and deposition) every dt_chem.
         IF ( time >= time_start_chemistry .and. MOD( NINT((time - time_start)*10.0), NINT(dt_chem*10.0)) == 0 ) THEN
-            call compute_chemistry(progn, -1.0_dp) ! A value < 0 indicates that the PAR be computed using the radiation routine.
+                call compute_chemistry(progn, -1.0_dp) ! A value < 0 indicates that the PAR be computed using the radiation routine.
             !print *, 'Chemistry called'
         end if
+
+        ! Compute chemistry parameterizations (emission and deposition) every dt_chem.
+        IF ( time >= time_start_aerosol .and. MOD( NINT((time - time_start)*10.0), NINT(dt_aero*10.0)) == 0 ) THEN
+            do i = 1, nz
+                cond_vapour(1) = progn%H2SO4%concentration(i)*1D6
+                cond_vapour(2) = progn%ELVOC%concentration(i)*1D6
+
+                call compute_aerosol(progn%size_distribution(:,i), cond_vapour, progn%T(i), &
+                progn%pressure(i), progn%cond_sink(:,i), progn%PN(i), progn%PM(i), progn%PV(i))
+            end do
+        end if
+
 
     end subroutine
 
@@ -150,7 +164,7 @@ contains
             progn%CH4%concentration(level) = 1759E-9 * progn%M(level)
             progn%CH3O2%concentration(level) = y(12)
             if (box) then
-                progn%isoprene%concentration(level) = 2.2E-9 * progn%M(level)
+                progn%isoprene%concentration(level) = 4.8D10!2.2E-9 * progn%M(level)
             else
                 progn%isoprene%concentration(level) = y(13)
             end if
@@ -164,7 +178,7 @@ contains
             progn%H2SO4_P%concentration(level) = y(21)
             progn%H2SO4%concentration(level) = y(22)
             if (box) then
-                progn%alpha_pinene%concentration(level) = 2.2E-9 * progn%M(level)
+                progn%alpha_pinene%concentration(level) = 4.8D10!2.2E-9 * progn%M(level)
             else
                 progn%alpha_pinene%concentration(level) = y(23)
             end if

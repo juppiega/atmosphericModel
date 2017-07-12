@@ -62,12 +62,12 @@ SUBROUTINE Time_Init()
   ! Simulation time period
   !
   time_start = 0
-  time_end = 86400 + time_start
+  time_end = 5*86400 + time_start
 
   !
   ! Time steps
   !
-  dt = 0.1
+  dt = 0.5
   dt_chem = 60
   dt_aero = 10.0
   dt_output = 1800
@@ -81,6 +81,7 @@ SUBROUTINE Time_Init()
   ! Start to run chemistry module after 1 day to save computation time
   !
   time_start_chemistry = 3*24*one_hour + time_start
+  time_start_aerosol = time_start_chemistry
 
   time_start_output = dt_output + time_start
 

@@ -6,6 +6,7 @@ module prognostics_mod
     use time_mod
     use radiation_mod
     use chemistry_mod
+    use aerosol_mod
 
     implicit none
 
@@ -295,6 +296,9 @@ module prognostics_mod
         type(H2SO4_type) :: H2SO4
         type(HNO3_P_type) :: HNO3_P
         type(ELVOC_type) :: ELVOC
+        real(kind = 8), dimension(2, 1:nz) :: cond_sink
+        real(kind = 8), dimension(nr_bins, 1:nz) :: size_distribution
+        real(kind = 8), dimension(nz) :: PN, PM, PV
     contains
         procedure :: leapfrog_middle                            ! Leapfrog to middle (NOT FULLY IMPLEMENTED)
         procedure :: leapfrog_next                              ! Leapfrog to next timestep (NOT FULLY IMPLEMENTED)
@@ -659,6 +663,7 @@ contains
     subroutine init_chemical_elements(this)
         implicit none
         class(prognostics_type), intent(inout) :: this
+        integer :: i
 
 
         call this%alpha_pinene%init(M_alpha_pinene, H_alpha_pinene, f_alpha_pinene,'alpha_pinene')
@@ -695,9 +700,19 @@ contains
         this%CH4%concentration = CH4_conc
         this%SO2%concentration = SO2_conc
         if (box) then
-            this%isoprene%concentration = 2.2E-9 * N_air
-            this%alpha_pinene%concentration = 2.2E-9 * N_air
+            this%isoprene%concentration = 4.8D10!2.2E-9 * N_air
+            this%alpha_pinene%concentration = 4.8D10!2.2E-9 * N_air
         end if
+
+        this%cond_sink = 0.0
+        this%PN = 0
+        this%PM = 0
+        this%PV = 0
+        do i = 1, nz
+            CALL Aerosol_init(diameter, particle_mass, particle_volume, this%size_distribution(:,i), &
+            particle_density, nucleation_coef, molecular_mass, molar_mass, &
+            molecular_volume, molecular_dia, mass_accomm)
+        end do
 
     end subroutine
 
@@ -1111,7 +1126,7 @@ contains
 
         this%parameterized_tendency(level) = 0.0
 
-        if (level == 2) then
+        if (.not. box .and. level == 2) then
             call this%compute_emission(progn) ! First, compute emissions
             call this%compute_deposition(progn) ! Second, compute the deposition.
 
@@ -1471,7 +1486,11 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
-        this%rate_coefficient(level) = 1D-3
+        if (box) then
+            this%rate_coefficient(level) = 1D-3!progn%cond_sink(1,level)
+        else
+            this%rate_coefficient(level) = progn%cond_sink(1,level)
+        end if
 
     end subroutine
 
@@ -1521,7 +1540,11 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
-        this%rate_coefficient(level) = 1D-3
+        if (box) then
+            this%rate_coefficient(level) = 1D-3!progn%cond_sink(2,level)
+        else
+            this%rate_coefficient(level) = progn%cond_sink(2,level)
+        end if
 
     end subroutine
 
@@ -1873,8 +1896,8 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
-        this%rate(level) = this%rate_coefficient(level) * (0.05 * alpha_pinene_OH%rate(level) + &
-                                                           0.1  * alpha_pinene_O3%rate(level))
+        this%rate(level) = (0.05 * alpha_pinene_OH%rate(level) + 0.1  * alpha_pinene_O3%rate(level)) - &
+                            this%rate_coefficient(level) * concentration(progn, level, progn%ELVOC)
 
     end subroutine
 
@@ -1891,9 +1914,7 @@ contains
         class(O3_type), intent(inout) :: this
         integer, intent(in) :: level
 
-        this%reaction_rate(level) = -O3_diss%rate(level) + O1D_N2%rate(level) + O1D_O2%rate(level) &
-                                    + NO2_diss%rate(level) - NO_O3%rate(level) - NO2_O3%rate(level) &
-                                    - HO2_O3%rate(level) - alpha_pinene_O3%rate(level) - isoprene_O3%rate(level)
+        this%reaction_rate(level) = 0
     end subroutine
 
     subroutine reaction_rate_O1D(this, level)
@@ -1924,10 +1945,7 @@ contains
         class(REST_type), intent(inout) :: this
         integer, intent(in) :: level
 
-        this%reaction_rate(level) = O1D_N2%rate(level) + NO2_diss%rate(level) + CH2O_diss%rate(level) &
-                                    + OH_CO%rate(level) + OH_CH4%rate(level) + OH_MVK%rate(level) &
-                                    + CH3O2_NO%rate(level) + OH_CH2O%rate(level) + CH3O2_HO2%rate(level) &
-                                    + RO2_HO2%rate(level)
+        this%reaction_rate(level) = 0
 
     end subroutine
 
@@ -1936,8 +1954,7 @@ contains
         class(NO_type), intent(inout) :: this
         integer, intent(in) :: level
 
-        this%reaction_rate(level) = NO2_diss%rate(level) - HO2_NO%rate(level) - CH3O2_NO%rate(level) &
-                                    -RO2_NO%rate(level) - NO_O3%rate(level) - NO_NO3%rate(level)
+        this%reaction_rate(level) = 0
 
     end subroutine
 
@@ -1946,10 +1963,7 @@ contains
         class(NO2_type), intent(inout) :: this
         integer, intent(in) :: level
 
-        this%reaction_rate(level) = -NO2_diss%rate(level) + HO2_NO%rate(level) + CH3O2_NO%rate(level) &
-                                    + RO2_NO%rate(level) - OH_NO2%rate(level) + NO_O3%rate(level) &
-                                    + 2*NO_NO3%rate(level) - NO2_O3%rate(level) - NO2_NO3%rate(level)&
-                                    + N2O5_diss%rate(level)
+        this%reaction_rate(level) = 0
 
     end subroutine
 
@@ -1970,7 +1984,7 @@ contains
 
         this%reaction_rate(level) = CH2O_diss%rate(level) + OH_CO%rate(level) + OH_MVK%rate(level)  &
                                     - HO2_NO%rate(level) + CH3O2_NO%rate(level) + RO2_NO%rate(level) &
-                                    + OH_CH2O%rate(level) - HO2_diss%rate(level) - CH3O2_HO2%rate(level) &
+                                    + OH_CH2O%rate(level) - 2*HO2_diss%rate(level) - CH3O2_HO2%rate(level) &
                                     - RO2_HO2%rate(level) - OH_HO2%rate(level) + OH_H2O2%rate(level) &
                                     - HO2_O3%rate(level)
 
@@ -1981,7 +1995,7 @@ contains
         class(CO_type), intent(inout) :: this
         integer, intent(in) :: level
 
-        this%reaction_rate(level) = -OH_CO%rate(level)
+        this%reaction_rate(level) = 0
 
     end subroutine
 
@@ -1990,7 +2004,7 @@ contains
         class(CO2_type), intent(inout) :: this
         integer, intent(in) :: level
 
-        this%reaction_rate(level) = OH_CO%rate(level)
+        this%reaction_rate(level) = 0
 
     end subroutine
 
@@ -1999,7 +2013,7 @@ contains
         class(CH4_type), intent(inout) :: this
         integer, intent(in) :: level
 
-        this%reaction_rate(level) = -OH_CH4%rate(level)
+        this%reaction_rate(level) = 0
 
     end subroutine
 
@@ -2080,7 +2094,7 @@ contains
         class(SO2_type), intent(inout) :: this
         integer, intent(in) :: level
 
-        this%reaction_rate(level) = -OH_SO2%rate(level)
+        this%reaction_rate(level) = 0
 
     end subroutine
 

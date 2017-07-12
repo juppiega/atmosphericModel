@@ -3,21 +3,19 @@ module Aerosol_mod
     use parameters_mod
     use time_mod
     IMPLICIT NONE
-    private
-    public test_aerosol
+    !private
+    !public test_aerosol
 
     !! ====================== Definition of variables =====================================================================
       ! so that numbers will be in 64bit floating point
     ! http://en.wikipedia.org/wiki/Double_precision_floating-point_format
 
     REAL(dp), PARAMETER :: ka = 0.4D0              ! von Karman constant, dimensionless
-    INTEGER, PARAMETER ::  nr_bins = 100           ! Number of particle size bins
-    INTEGER, PARAMETER ::  nr_cond = 2             ! Number of condensable vapours
     REAL(DP), PARAMETER :: Rg=8.3145D0             ! Universal gas constant J mol^-1 K^-1
 
     REAL(DP), DIMENSION(nr_bins) :: diameter  ,&    ! Diameter of each size bin
         particle_mass                        ,&    ! mass of one particle in each size bin
-        size_distribution                        ,&    ! number concentration in each size bin
+        !size_distribution                        ,&    ! number concentration in each size bin
         particle_volume                      ,&    ! volume concentration in each size bin
         coag_loss                            ,&    ! coagulation loss rate of particles in each size bin
         v_dep                                      ! Dry deposition velocity of particles
@@ -28,9 +26,9 @@ module Aerosol_mod
         molar_mass                                  ,&   ! Molar mass of condensable vapours [kg/m^3]
         cond_vapour                                      ! Concentration of condensable vapours [molec/m^3]
 
-    REAL(DP), DIMENSION(nr_cond) :: Cond_sink             ! Condensation sink of vapours [s^-1]
+    !REAL(DP), DIMENSION(nr_cond) :: Cond_sink             ! Condensation sink of vapours [s^-1]
 
-    REAL(DP) ::         PN, PM, PV                  ! Total particle number and mass concentration [cm^-3]
+
 
     REAL(DP) :: vd_SO2,vd_O3, vd_HNO3           ! Dry deposition velocity of SO2, O3 & HNO3
 
@@ -50,121 +48,31 @@ module Aerosol_mod
 
 CONTAINS
 
-    subroutine compute_PN()
+    subroutine compute_aerosol(size_distribution, cond_vapour, temperature, pressure, cond_sink, PN, PM, PV)
         implicit none
+        real(kind = 8), intent(inout) :: size_distribution(:)
+        real(kind = 8), intent(in) :: cond_vapour(:), temperature, pressure
+        real(kind = 8), intent(out) :: cond_sink(:)
+        REAL(DP), intent(out) ::         PN, PM, PV                  ! Total particle number and mass concentration [cm^-3]
+
+
+        !!! Calculate new 2nm particle formation (nucleation) here !!!
+        call Nucleation(cond_vapour(1), size_distribution(1))
+
+        !!! Calculate coagulation losses here !!!
+        call Coagulation(dt_aero, size_distribution, diameter, &
+        temperature,pressure,particle_mass)
+
+        !!! Calculate condensation particle growth here !!!
+        call Condensation(dt_aero, temperature, pressure, molecular_mass, &
+        molecular_volume, molar_mass, molecular_dia, particle_mass, particle_volume, &
+        size_distribution, cond_sink, diameter, cond_vapour)
+
+        ! Compute statistics.
+
+        PM = SUM(size_distribution*particle_mass)*1D9    ! Total particle mass concentration (ug/m^3)
         PN = SUM(size_distribution)*1D-6                 ! Total particle number concentration (cm^-3)
-    end subroutine
-
-    subroutine compute_PM()
-        implicit none
-        PM=SUM(size_distribution*particle_mass)*1D9    ! Total particle mass concentration (ug/m^3)
-    end subroutine
-
-    subroutine compute_PV()
-        implicit none
-        PV=SUM(size_distribution*particle_volume)*1D12    ! Total particle mass concentration (ug/m^3)
-    end subroutine
-
-
-    subroutine output_aerosols()
-        implicit none
-        logical :: first_call = .true.
-        integer, save :: PM_unit, PN_unit, PV_unit, time_unit
-
-        if (first_call) then
-            OPEN(FILE = TRIM(ADJUSTL(outdir))//adjustl('/')//adjustl(trim('PM'))//adjustl('.dat')  , &
-                STATUS = 'REPLACE', ACTION = 'WRITE', newunit=PM_unit)
-            OPEN(FILE = TRIM(ADJUSTL(outdir))//adjustl('/')//adjustl(trim('PN'))//adjustl('.dat')  , &
-                STATUS = 'REPLACE', ACTION = 'WRITE', newunit=PN_unit)
-            OPEN(FILE = TRIM(ADJUSTL(outdir))//adjustl('/')//adjustl(trim('PV'))//adjustl('.dat')  , &
-                STATUS = 'REPLACE', ACTION = 'WRITE', newunit=PV_unit)
-            OPEN(FILE = TRIM(ADJUSTL(outdir))//adjustl('/')//adjustl(trim('time'))//adjustl('.dat')  , &
-                STATUS = 'REPLACE', ACTION = 'WRITE', newunit=time_unit)
-            first_call = .false.
-!            print *, 'First call to aer. output'
-        end if
-
-        WRITE(PM_unit, *) PM
-        WRITE(PN_unit, *) PN
-        write(PV_unit, *) PV
-        write(time_unit,*) time/86400
-
-    end subroutine
-
-    subroutine test_aerosol()
-        implicit none
-        real(kind=8) :: last_output, simu_hours
-            !! ======================= Programe starts ===========================================================================
-
-        ! Assign values to parameters and initialize the simulation
-
-        CALL Aerosol_init(diameter, particle_mass, particle_volume, size_distribution, &
-            particle_density, nucleation_coef, molecular_mass, molar_mass, &
-            molecular_volume, molecular_dia, mass_accomm)
-
-        simu_hours = 24D0 ! hours
-        dt_aero = 1D1 ! s
-        time_start = 0D0
-        time_end = time_start + simu_hours*3600.
-        time = time_start
-        last_output = -dt_output
-
-        DO WHILE (time .lt. time_end) ! Main program time step loop
-
-            ! Meteorological parameters:
-            temperature = 300D0  ! K
-            pressure = 1D5       ! Pa
-
-            ! In the 1D-blm you will instead use:
-            ! dh = h(2:nz) - h(1:nz-1) ! The height of each model layer
-            ! Cp = 1D3  ! Air specific heat at constant pressure, J/(kg��K)
-            ! temperature = theta - (g/Cp)*h ! Temperature in K
-            ! pressure(1)=1D5 ! Surface pressure (Pa)
-            ! DO i=2,nz
-            !    pressure(i) = pressure(i-1)*exp(-Mair*g/&
-            !   (Rg*(temperature(i-1)+temperature(i))/2D0)*dh(i-1)) ! Barometric law
-            ! END DO
-
-            Richards_nr10m = 0D0 ! Richards number at 10 m above ground (0 for neutral atmosphere)
-            wind_speed10m = 2D0  ! Wind speed at the reference altitude 10 m [m/s]
-            Mixing_height = 1D3  ! Assumed mixing height of the box model (m)
-            DSWF = 6D2 * sin(pi/86400 * time) ! Downward Shortwave radiation flux (diurnal cycle) (W/m^2)
-            ! In the 1D-blm model we use:
-            ! DSWF = 6D2 * exp_coszen ! Approximate downward shortwave rations flux (W/m^2)
-
-            cond_vapour(1) = 1D13*sin(pi/86400 * time) ! H2SO4 molec / m^3
-            cond_vapour(2) = 1D13                      ! ELVOC molec / m^3
-
-            !!! Calculate particle dry deposition velocity and particle losses due to dry deposition here !!!
-
-            !!! Calculate new 2nm particle formation (nucleation) here !!!
-            call Nucleation(cond_vapour(1), size_distribution(1))
-
-            !!! Calculate coagulation losses here !!!
-            call Coagulation(dt_aero, size_distribution, diameter, &
-            temperature,pressure,particle_mass)
-
-            !!! Calculate condensation particle growth here !!!
-            call Condensation(dt_aero, temperature, pressure, molecular_mass, &
-            molecular_volume, molar_mass, molecular_dia, particle_mass, particle_volume, &
-            size_distribution, diameter, cond_vapour)
-
-            ! Compute statistics.
-
-            call compute_PM()
-            call compute_PN()
-            call compute_PV()
-
-            if (time - last_output >= dt_output) then
-                call output_aerosols()
-                last_output = time
-                write(*,*) 'time', time/3600.
-            end if
-
-            time = time + dt_aero
-
-
-        ENDDO
+        PV = SUM(size_distribution*particle_volume)*1D12    ! Total particle mass concentration (ug/m^3)
 
     end subroutine
 
@@ -228,7 +136,7 @@ CONTAINS
 
     SUBROUTINE Condensation(dt_aero, temperature, pressure, molecular_mass, &
         molecular_volume, molar_mass, molecular_dia, particle_mass, particle_volume, &
-        particle_conc, diameter, cond_vapour) ! Add more variables if you need it
+        particle_conc, cond_sink, diameter, cond_vapour) ! Add more variables if you need it
 
         REAL(DP), DIMENSION(nr_bins), INTENT(IN) :: diameter, particle_mass
         REAL(DP), DIMENSION(nr_cond), INTENT(IN) :: molecular_mass, molecular_dia, &
@@ -236,6 +144,7 @@ CONTAINS
         REAL(DP), INTENT(IN) :: dt_aero, temperature, pressure
 
         REAL(DP), DIMENSION(nr_bins), INTENT(INOUT) :: particle_conc
+        REAL(DP), DIMENSION(nr_cond), INTENT(OUT) :: cond_sink
 
         REAL(DP), DIMENSION(2), INTENT(IN) :: cond_vapour  ! condensing vapour concentrations, which is H2SO4 and organics (ELVOC) [#/m^3]
 
@@ -281,6 +190,7 @@ CONTAINS
 
         ! Calculate the Collision rate (CR [m^3/2]) between gas molecules (H2SO4 and ELVOC) and the particles:
         CR = 2*pi * (diameter + molecular_dia(j)) * (diffusivity_gas(j) + diffusivity_p) * fuchs_sutugin
+        cond_sink(j) = sum(particle_conc*CR)
 
         ! Calculate the new single particle volume after condensation (particle_volume_new):
         particle_volume_new = particle_volume_new + CR*cond_vapour(j)*molecular_volume(j) *dt_aero

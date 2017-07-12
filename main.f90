@@ -46,11 +46,6 @@ PROGRAM main
     !-----------------------------------------------------------------------------------------
     CALL time_init()         ! initialize time, time step, date
 
-    if (box) then
-        call test_aerosol()
-        stop 'Aerosol tested'
-    end if
-
     CALL dynamics_init()     ! Initialize dynamics
 
     call parameterizations_init() ! Initialize parameterizations
@@ -147,6 +142,10 @@ CONTAINS
         OPEN(16, FILE = TRIM(ADJUSTL(outdir))//'/Km.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
         OPEN(17, FILE = TRIM(ADJUSTL(outdir))//'/Kh.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
         OPEN(18, FILE = TRIM(ADJUSTL(outdir))//'/Ri.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(19, FILE = TRIM(ADJUSTL(outdir))//'/PN.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(20, FILE = TRIM(ADJUSTL(outdir))//'/PM.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(21, FILE = TRIM(ADJUSTL(outdir))//'/PV.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(22, FILE = TRIM(ADJUSTL(outdir))//'/size_distribution.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
     END SUBROUTINE open_files
 
 
@@ -159,7 +158,7 @@ CONTAINS
         !
         type(prognostics_type), intent(inout) :: progn
         REAL(DP), intent(in) :: TIME  ! current time
-        CHARACTER(255) :: outfmt
+        CHARACTER(255) :: outfmt, outfmt_nrbins
         !
         ! Description
         !
@@ -169,6 +168,7 @@ CONTAINS
         ! Get output format for arrays with nz layers
         !
         WRITE(outfmt, '(a, i3, a)') '(', nz, 'es25.16)'
+        WRITE(outfmt_nrbins, '(a, i3, a)') '(', nr_bins, 'es25.16)'
 
         !
         ! Only save h one time at the beginning
@@ -182,6 +182,7 @@ CONTAINS
         WRITE(14, outfmt) progn%va                  ! [m s-1], v wind
         WRITE(15, outfmt) progn%theta               ! [K], potential temperature
         if (output_chemistry) then
+            !print *, progn%OH%concentration(2)
             call progn%O3%output
             call progn%O1D%output
             call progn%OH%output
@@ -208,6 +209,12 @@ CONTAINS
             call progn%HNO3_P%output
             call progn%ELVOC%output
         end if
+
+        write(19, outfmt) progn%PN
+        write(20, outfmt) progn%PM
+        write(21, outfmt) progn%PV
+        write(22, outfmt_nrbins) progn%size_distribution(:,2)
+
 
         call parameterizations_output(progn) ! TODO: empty as of yet
     END SUBROUTINE write_files
@@ -236,6 +243,10 @@ CONTAINS
         close(16)
         close(17)
         close(18)
+        close(19)
+        close(20)
+        close(21)
+        close(22)
         if (output_chemistry) then
             call progn%O3%close_file
             call progn%O1D%close_file
@@ -307,6 +318,10 @@ CONTAINS
         progn%ua = 0.0
         progn%va = 0.0
         progn%theta = 300
+        progn%T = 300
+        progn%M = 2.4D19
+        progn%O2 = 0.21*2.4D19
+        progn%N2 = 0.78*2.4D19
         ! Chemical elements already initialized
 
         PAR_val = -1.0_dp!1000.0 * get_exp_coszen(0.0_dp, daynumber, latitude)
