@@ -38,7 +38,8 @@ integer, parameter :: leapfrog_atMidpoint = 1, leapfrog_atPreviousFullTime = 2, 
 integer, parameter :: euler = 1, leapfrog = 2, RK4 = 3
 
 logical, parameter :: output_chemistry = .true.
-logical, parameter :: box = .false.
+logical, parameter :: box = .true.
+logical, parameter :: aerosol_coupling = .false.
 CHARACTER(255), PARAMETER :: outdir = 'output'
 
 INTEGER, PARAMETER ::  nr_bins = 100           ! Number of particle size bins

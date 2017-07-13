@@ -25,6 +25,8 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer :: i
 
+        !print *, 'parameterizations called'
+
         ! Compute chemistry parameterizations (emission and deposition) every dt_chem.
         IF ( time >= time_start_chemistry .and. MOD( NINT((time - time_start)*10.0), NINT(dt_chem*10.0)) == 0 ) THEN
                 call compute_chemistry(progn, -1.0_dp) ! A value < 0 indicates that the PAR be computed using the radiation routine.
@@ -32,7 +34,7 @@ contains
         end if
 
         ! Compute chemistry parameterizations (emission and deposition) every dt_chem.
-        IF ( time >= time_start_aerosol .and. MOD( NINT((time - time_start)*10.0), NINT(dt_aero*10.0)) == 0 ) THEN
+        IF (aerosol_coupling.and.time>=time_start_aerosol.and.MOD(NINT((time-time_start)*10.0),NINT(dt_aero*10.0))==0)THEN
             do i = 1, nz
                 cond_vapour(1) = progn%H2SO4%concentration(i)*1D6
                 cond_vapour(2) = progn%ELVOC%concentration(i)*1D6
@@ -61,12 +63,15 @@ contains
 
         call compute_aerodynamic_resistance(progn) ! r_a
 
+        !write(*,*) 'compute_chemistry called'
+
         input_array(1) = num_chemical_elements
         !print*, time
         do level = 2, nz-1 ! TESTAUS
             istate = 1
             input_array(2) = level
             concentration_tendencies = 0
+
 
             concentrations(1) = progn%O3%concentration(level)
             concentrations(2) = progn%O1D%concentration(level)
@@ -94,12 +99,16 @@ contains
             concentrations(24) = progn%HNO3_P%concentration(level)
             concentrations(25) = progn%ELVOC%concentration(level)
 
+            concentrations = max(concentrations, 0.0D0)
+
             t = time
             call dlsode(f, input_array, concentrations, t, t+dt_chem, itol, rtol, atol, itask, &
                         istate, iopt, rwork, lrw, iwork, liw, jac, mf)
             !call f(input_array, time, concentrations, concentration_tendencies)
             !print *, concentration_tendencies
             !stop
+
+            concentrations = max(concentrations, 0.0D0)
 
             progn%O3%concentration(level) = concentrations(1)
             progn%O1D%concentration(level) = concentrations(2)
@@ -128,6 +137,7 @@ contains
             progn%ELVOC%concentration(level) = concentrations(25)
 
         end do
+        !if (time/86400 >= 4.5 .and. time/86400 <= 4.51) print *, H2SO4_diss%rate(2)
         !print*, time
         !print *, concentrations
         !print *, get_exp_coszen(time, daynumber, latitude)
@@ -151,17 +161,17 @@ contains
             level = iarray(2)
             !print *, level
 
-            progn%O3%concentration(level) = 24E-9 * progn%M(level)
+            progn%O3%concentration(level) = 24E-9 !* progn%M(level)
             progn%O1D%concentration(level) = y(2)
             progn%OH%concentration(level) = y(3)
             progn%REST%concentration(level) = y(4)
-            progn%NO2%concentration(level) = 0.2E-9 * progn%M(level)
-            progn%NO%concentration(level) = 0.07E-9 * progn%M(level)
+            progn%NO2%concentration(level) = 0.2E-9 !* progn%M(level)
+            progn%NO%concentration(level) = 0.07E-9 !* progn%M(level)
             progn%CH2O%concentration(level) = y(7)
             progn%HO2%concentration(level) = y(8)
-            progn%CO%concentration(level) = 100E-9 * progn%M(level)
+            progn%CO%concentration(level) = 100E-9 !* progn%M(level)
             progn%CO2%concentration(level) = y(10)
-            progn%CH4%concentration(level) = 1759E-9 * progn%M(level)
+            progn%CH4%concentration(level) = 1759E-9 !* progn%M(level)
             progn%CH3O2%concentration(level) = y(12)
             if (box) then
                 progn%isoprene%concentration(level) = 4.8D10!2.2E-9 * progn%M(level)
@@ -174,7 +184,7 @@ contains
             progn%HNO3%concentration(level) = y(17)
             progn%NO3%concentration(level) = y(18)
             progn%N2O5%concentration(level) = y(19)
-            progn%SO2%concentration(level) = 0.5E-9 *progn%M(level)
+            progn%SO2%concentration(level) = 0.5E-9 !*progn%M(level)
             progn%H2SO4_P%concentration(level) = y(21)
             progn%H2SO4%concentration(level) = y(22)
             if (box) then
@@ -257,6 +267,7 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
+        !write(*,*) 'compute_reactions called'
         ! TODO: Naitahan ei tarvits laskea joka f:n iteraatiolla!
         call O3_diss%compute_rate_coefficient(progn, level)
         call O1D_H2O%compute_rate_coefficient(progn, level)

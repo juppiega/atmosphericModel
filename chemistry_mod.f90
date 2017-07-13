@@ -39,8 +39,8 @@ INTEGER, PARAMETER  :: liw   = 20+neq  ! integer workspace size
 INTEGER, PARAMETER  :: mf    = 22      ! stiff, no user-provided jacobian
 integer, parameter  :: alpha_pinene_ind = 23
 integer, parameter  :: isoprene_ind = 13
-REAL(dp), PARAMETER :: rtol = 1d-5     ! relative tolerance
-REAL(dp), PARAMETER :: atol = 1d-3     ! absolute tolerance
+REAL(dp), PARAMETER :: rtol = 1d-6     ! relative tolerance
+REAL(dp), PARAMETER :: atol = 1d-4     ! absolute tolerance
 real(kind = 8), parameter :: H2O = 1D16
 real(kind = 8), parameter :: M_surf = 2.4D10 ! [*10^9 / cm3]
 real(kind = 8), parameter :: O3_conc = 24*M_surf

@@ -80,7 +80,11 @@ SUBROUTINE Time_Init()
   !
   ! Start to run chemistry module after 1 day to save computation time
   !
-  time_start_chemistry = 3*24*one_hour + time_start
+  if (box) then
+    time_start_chemistry = 0*24*one_hour + time_start
+  else
+    time_start_chemistry = 3*24*one_hour + time_start
+  end if
   time_start_aerosol = time_start_chemistry
 
   time_start_output = dt_output + time_start

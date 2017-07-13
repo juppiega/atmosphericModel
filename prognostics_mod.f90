@@ -1486,11 +1486,14 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
-        if (box) then
+
+        if (box .or. .not. aerosol_coupling) then
             this%rate_coefficient(level) = 1D-3!progn%cond_sink(1,level)
         else
             this%rate_coefficient(level) = progn%cond_sink(1,level)
         end if
+        this%rate_coefficient(level) = 1D-3 ! TESTI
+        !print *, this%rate_coefficient(level)
 
     end subroutine
 
@@ -1540,7 +1543,7 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
-        if (box) then
+        if (box .or. .not. aerosol_coupling) then
             this%rate_coefficient(level) = 1D-3!progn%cond_sink(2,level)
         else
             this%rate_coefficient(level) = progn%cond_sink(2,level)
