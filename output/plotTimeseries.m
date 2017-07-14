@@ -3,8 +3,8 @@ function plotTimeseries(varname, beginDay, endDay)
 
 load('time.dat')
 if strcmpi(varname, 'chem_param')
-    alpha_pinene = load('alpha_pinene.dat');
-    isoprene = load('isoprene.dat');
+    alpha_pinene = load('alp_em.dat');
+    isoprene = load('is_em.dat');
 end
 
 ind = beginDay <= time & time <= endDay;

@@ -10,7 +10,7 @@ function plotAtTime(varname, days, hours, minutes)
     var = va;
   elseif strcmpi(varname,'theta')
     load('theta.dat')
-    var = theta;
+    var = theta-273.15;
   elseif strcmpi(varname,'alpha_pinene')
     load('alpha_pinene.dat')
     var = alpha_pinene;

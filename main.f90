@@ -146,6 +146,10 @@ CONTAINS
         OPEN(20, FILE = TRIM(ADJUSTL(outdir))//'/PM.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
         OPEN(21, FILE = TRIM(ADJUSTL(outdir))//'/PV.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
         OPEN(22, FILE = TRIM(ADJUSTL(outdir))//'/size_distribution.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(23, FILE = TRIM(ADJUSTL(outdir))//'/alp_em.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(24, FILE = TRIM(ADJUSTL(outdir))//'/alp_dep.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(25, FILE = TRIM(ADJUSTL(outdir))//'/is_em.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(26, FILE = TRIM(ADJUSTL(outdir))//'/is_dep.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
     END SUBROUTINE open_files
 
 
@@ -214,6 +218,10 @@ CONTAINS
         write(20, outfmt) progn%PM
         write(21, outfmt) progn%PV
         write(22, outfmt_nrbins) progn%size_distribution(:,2)
+        write(23, *) progn%alpha_pinene%emission
+        write(24, *) progn%alpha_pinene%deposition
+        write(25, *) progn%isoprene%emission
+        write(26, *) progn%isoprene%deposition
 
 
         call parameterizations_output(progn) ! TODO: empty as of yet
@@ -274,6 +282,10 @@ CONTAINS
             call progn%HNO3_P%close_file
             call progn%ELVOC%close_file
          end if
+         close(23)
+         close(24)
+         close(25)
+         close(26)
     END SUBROUTINE close_files
 
     subroutine prognostics_init(progn)

@@ -43,7 +43,7 @@ REAL(dp), PARAMETER :: rtol = 1d-6     ! relative tolerance
 REAL(dp), PARAMETER :: atol = 1d-4     ! absolute tolerance
 real(kind = 8), parameter :: H2O = 1D16
 real(kind = 8), parameter :: M_surf = 2.4D10 ! [*10^9 / cm3]
-real(kind = 8), parameter :: O3_conc = 24*M_surf
+real(kind = 8), parameter :: O3_conc = 24D0*M_surf
 real(kind = 8), parameter :: CO_conc = 100*M_surf
 real(kind = 8), parameter :: NO2_conc = 0.2*M_surf
 real(kind = 8), parameter :: NO_conc = 0.07*M_surf

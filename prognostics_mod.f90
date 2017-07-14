@@ -628,6 +628,18 @@ contains
         this%va(updInd) = this%va(updInd) + dt * this%dvdt
         this%theta(updInd) = this%theta(updInd) + dt * this%dThetaDt
 
+        if (.not. model_chemistry .and. time >= time_start_chemistry) then
+            call compute_radiation()
+            call compute_aerodynamic_resistance(this) ! r_a
+
+            call this%isoprene%compute_parameterized_tendency(this, 2)
+            call this%alpha_pinene%compute_parameterized_tendency(this, 2)
+            this%isoprene%dynamical_tendency(1) = this%isoprene%dynamical_tendency(1) + &
+                                                  this%isoprene%parameterized_tendency(2)
+            this%alpha_pinene%dynamical_tendency(1) = this%alpha_pinene%dynamical_tendency(1) + &
+                                                      this%alpha_pinene%parameterized_tendency(2)
+        end if
+
         ! Update chemical components
         this%O3%concentration(updInd) = this%O3%concentration(updInd) +  dt * (this%O3%dynamical_tendency)
         this%O1D%concentration(updInd) = this%O1D%concentration(updInd) +  dt * (this%O1D%dynamical_tendency)
@@ -668,7 +680,7 @@ contains
 
         call this%alpha_pinene%init(M_alpha_pinene, H_alpha_pinene, f_alpha_pinene,'alpha_pinene')
         call this%isoprene%init(M_isoprene, H_isoprene, f_isoprene,'isoprene')
-        call this%OH%init(17.01_dp, 0.0_dp, 0.0_dp, 'OH')
+        call this%OH%init(0.0_dp, 0.0_dp, 0.0_dp, 'OH')
         call this%O3%init(0.0_dp, 0.0_dp, 0.0_dp, 'O3')
         call this%O1D%init(0.0_dp, 0.0_dp, 0.0_dp, 'O1D')
         call this%REST%init(0.0_dp, 0.0_dp, 0.0_dp, 'REST')
@@ -693,18 +705,18 @@ contains
         call this%ELVOC%init(0.0_dp, 0.0_dp, 0.0_dp, 'ELVOC')
 
 
-        this%O3%concentration = O3_conc
-        this%NO2%concentration = NO2_conc
-        this%NO%concentration = NO_conc
-        this%CO%concentration = CO_conc
-        this%CH4%concentration = CH4_conc
-        this%SO2%concentration = SO2_conc
+        this%O3%concentration(1:nz-1) = O3_conc
+        this%NO2%concentration(1:nz-1) = NO2_conc
+        this%NO%concentration(1:nz-1) = NO_conc
+        this%CO%concentration(1:nz-1) = CO_conc
+        this%CH4%concentration(1:nz-1) = CH4_conc
+        this%SO2%concentration(1:nz-1) = SO2_conc
         if (box) then
             this%isoprene%concentration = 4.8D10!2.2E-9 * N_air
             this%alpha_pinene%concentration = 4.8D10!2.2E-9 * N_air
         end if
 
-        this%cond_sink = 0.0
+        this%cond_sink = 0.001D0
         this%PN = 0
         this%PM = 0
         this%PV = 0
@@ -958,7 +970,7 @@ contains
         adjust_factor = exp(B * (T - Ts) ) ! Adjust emission depending on temperature
 
         ! Compute emission from vegetation.
-        this%emission = compute_vegetation_emission(adjust_factor, this%molar_mass)
+        this%emission = 0.87*compute_vegetation_emission(adjust_factor, this%molar_mass)
 
     end subroutine compute_emission_alpha_pinene
 
@@ -985,7 +997,7 @@ contains
         adjust_factor = C_L * C_T
 
         ! Compute emission from vegetation.
-        this%emission = compute_vegetation_emission(adjust_factor, this%molar_mass)
+        this%emission = 0.87*compute_vegetation_emission(adjust_factor, this%molar_mass)
 
 
     end subroutine compute_emission_isoprene
@@ -1132,11 +1144,16 @@ contains
 
             ! Tendency (at 10 meters)
             this%parameterized_tendency(level) = this%emission - this%deposition
+            if (3.5 <= time/86400 .and. time/86400 <= 3.501) then
+                !print *, this%emission
+            end if
         end if
 
         ! Chemical reactions.
-        call this%compute_reaction_rate(level)
-        this%parameterized_tendency(level) = this%parameterized_tendency(level) + this%reaction_rate(level)
+        if (model_chemistry) then
+            call this%compute_reaction_rate(level)
+            this%parameterized_tendency(level) = this%parameterized_tendency(level) + this%reaction_rate(level)
+        end if
 
     end subroutine
 
@@ -1487,12 +1504,12 @@ contains
         integer, intent(in) :: level
 
 
-        if (box .or. .not. aerosol_coupling) then
+        if (box .or. .not. model_aerosols) then
             this%rate_coefficient(level) = 1D-3!progn%cond_sink(1,level)
         else
             this%rate_coefficient(level) = progn%cond_sink(1,level)
         end if
-        this%rate_coefficient(level) = 1D-3 ! TESTI
+        !this%rate_coefficient(level) = 1D-3 ! TESTI
         !print *, this%rate_coefficient(level)
 
     end subroutine
@@ -1523,7 +1540,7 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
-        this%rate_coefficient(level) = 6.3D-16 * exp(-580 / progn%T(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
+        this%rate_coefficient(level) = 6.3D-16 * exp(-580D0 / progn%T(level)) ! TODO: Yksikko? Muuta potentiaalista todelliseksi.
 
     end subroutine
 
@@ -1543,7 +1560,7 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
-        if (box .or. .not. aerosol_coupling) then
+        if (box .or. .not. model_aerosols) then
             this%rate_coefficient(level) = 1D-3!progn%cond_sink(2,level)
         else
             this%rate_coefficient(level) = progn%cond_sink(2,level)

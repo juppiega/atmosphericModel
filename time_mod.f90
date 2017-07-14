@@ -70,7 +70,7 @@ SUBROUTINE Time_Init()
   dt = 0.5
   dt_chem = 60
   dt_aero = 10.0
-  dt_output = 1800
+  dt_output = 3600
 
   !
   ! Get the Julian date of Aug. 10, 2011
