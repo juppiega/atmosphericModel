@@ -33,9 +33,10 @@ contains
             !print *, 'Chemistry called'
         end if
 
-        ! Compute chemistry parameterizations (emission and deposition) every dt_chem.
+        ! Compute aerosols.
         IF (model_aerosols.and.time>=time_start_aerosol.and.MOD(NINT((time-time_start)*10.0),NINT(dt_aero*10.0))==0)THEN
             do i = 1, nz
+                ! Set condensation vapour concentrations.
                 cond_vapour(1) = progn%H2SO4%concentration(i)*1D6
                 cond_vapour(2) = progn%ELVOC%concentration(i)*1D6
 
@@ -51,10 +52,11 @@ contains
         implicit none
         type(prognostics_type), intent(inout) :: progn
         real(kind = 8), intent(in) :: PAR_val ! Predefined PAR value for testing. If PAR_val < 0, the value is computed using a routine.
-        integer :: level, chemical
+        integer :: level
         real(kind = 8) :: concentrations(num_chemical_elements), concentration_tendencies(num_chemical_elements), t
         integer :: input_array(2), istate = 1
 
+        ! Compute radiation if not set by the caller (PAR < 0)
         if (PAR_val < 0) then
             call compute_radiation() ! Compute PAR
         else
@@ -63,11 +65,10 @@ contains
 
         call compute_aerodynamic_resistance(progn) ! r_a
 
-        !write(*,*) 'compute_chemistry called'
-
         input_array(1) = num_chemical_elements
         !print*, time
-        do level = 2, nz-1 !
+        do level = 2, nz-1
+            ! Set up the initial and input values for the solver.
             istate = 1
             input_array(2) = level
             concentration_tendencies = 0
@@ -102,14 +103,15 @@ contains
             concentrations = max(concentrations, 0.0D0)
 
             t = time
+
+            ! CALL SOLVER ------------
             call dlsode(f, input_array, concentrations, t, t+dt_chem, itol, rtol, atol, itask, &
                         istate, iopt, rwork, lrw, iwork, liw, jac, mf)
-            !call f(input_array, time, concentrations, concentration_tendencies)
-            !print *, concentration_tendencies
-            !stop
+            ! ------------------------
 
-            concentrations = max(concentrations, 0.0D0)
+            concentrations = max(concentrations, 0.0D0) ! No negative concentrations.
 
+            ! Set the result back to objects.
             progn%O3%concentration(level) = concentrations(1)
             progn%O1D%concentration(level) = concentrations(2)
             progn%OH%concentration(level) = concentrations(3)
@@ -137,13 +139,9 @@ contains
             progn%ELVOC%concentration(level) = concentrations(25)
 
         end do
-        !if (time/86400 >= 4.5 .and. time/86400 <= 4.51) print *, H2SO4_diss%rate(2)
-        !print*, time
-        !print *, concentrations
-        !print *, get_exp_coszen(time, daynumber, latitude)
 
 
-    contains
+    contains ! These are inside the compute_chemistry subroutine!
 
 
         SUBROUTINE  jac (NEQ, T, Y, ML, MU, PD, NRPD)
@@ -152,15 +150,17 @@ contains
         RETURN
         END subroutine
 
+        ! Function evaluated by dlsode.
         subroutine f(iarray, t, y, ydot)
             use parameters_mod
             implicit none
             double precision t, y(*), ydot(*)
             integer :: iarray(2), level
 
-            level = iarray(2)
+            level = iarray(2) ! Level information passed as a second argument of iarray
             !print *, level
 
+            ! Set the concentrations back to objects for chemistry computations.
             progn%O3%concentration(level) = 24E-9 * progn%M(level)
             progn%O1D%concentration(level) = y(2)
             progn%OH%concentration(level) = y(3)
@@ -195,8 +195,10 @@ contains
             progn%HNO3_P%concentration(level) = y(24)
             progn%ELVOC%concentration(level) = y(25)
 
+            ! Compute chemical reaction rates.
             call compute_reactions(progn, level)
 
+            ! Compute parameterized tendencies (emission + deposition + reactions).
             call progn%O3%compute_parameterized_tendency(progn, level)
             call progn%O1D%compute_parameterized_tendency(progn, level)
             call progn%OH%compute_parameterized_tendency(progn, level)
@@ -223,6 +225,7 @@ contains
             call progn%HNO3_P%compute_parameterized_tendency(progn, level)
             call progn%ELVOC%compute_parameterized_tendency(progn, level)
 
+            ! Set the time derivative.
             ydot(1) = 0
             ydot(2) = progn%O1D%parameterized_tendency(level)
             ydot(3) = progn%OH%parameterized_tendency(level)
@@ -267,8 +270,6 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
-        !write(*,*) 'compute_reactions called'
-        ! TODO: Naitahan ei tarvits laskea joka f:n iteraatiolla!
         call O3_diss%compute_rate_coefficient(progn, level)
         call O1D_H2O%compute_rate_coefficient(progn, level)
         call O1D_N2%compute_rate_coefficient(progn, level)
