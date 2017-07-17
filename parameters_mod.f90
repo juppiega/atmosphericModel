@@ -40,7 +40,7 @@ integer, parameter :: euler = 1, leapfrog = 2, RK4 = 3
 logical, parameter :: output_chemistry = .true.
 logical, parameter :: model_chemistry = .true.
 logical, parameter :: box = .false.
-logical, parameter :: model_aerosols = .false.
+logical, parameter :: model_aerosols = .true.
 CHARACTER(255), PARAMETER :: outdir = 'output'
 
 INTEGER, PARAMETER ::  nr_bins = 100           ! Number of particle size bins

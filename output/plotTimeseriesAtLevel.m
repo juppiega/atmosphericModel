@@ -12,6 +12,6 @@ end
 plot(time(i), y(i,level),'linewidth', 2.0)
 xlabel('Time [d]', 'fontsize',15)
 title(varname,'fontsize',15)
-
+set(gca,'fontsize',15)
 
 end

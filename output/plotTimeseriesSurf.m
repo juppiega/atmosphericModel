@@ -15,7 +15,7 @@ function plotTimeseriesSurf(varname, chemname)
   elseif strcmpi(varname,'chemistry')
     var = load([chemname,'.dat']);
     if strcmpi(chemname, 'size_distribution')
-      var = log10(var);
+      var = log10(var/1E6);
       var(var < 0) = 0;
     end  
     var = var(time >= 3, :);

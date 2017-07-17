@@ -67,7 +67,7 @@ contains
 
         input_array(1) = num_chemical_elements
         !print*, time
-        do level = 2, nz-1 ! TESTAUS
+        do level = 2, nz-1 !
             istate = 1
             input_array(2) = level
             concentration_tendencies = 0

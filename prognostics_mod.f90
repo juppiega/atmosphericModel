@@ -26,38 +26,38 @@ module prognostics_mod
     ! 5. Add it to set_boundary_conditions
     ! 6. Add it to parameterizations_mod
     ! 7. Add it to write_files
-    type, abstract :: chemical_element
-        real(kind = 8) :: concentration(nz) ! Concentration in the atmospheric column [# / cm^3]
-        real(kind = 8) :: parameterized_tendency(2:nz-1)    ! Tendency from emission, deposition, chemical reactions [# / cm^3 / s]
-        real(kind = 8) :: dynamical_tendency(nz-2)    ! Tendency from atmospheric turbulence (computed in dynamics_mod) [# / cm^3 / s]
-        real(kind = 8) :: reaction_rate(2:nz-1)         ! Reaction rate.
-        real(kind = 8) :: molar_mass                  ! Molar mass [g / mol]
-        real(kind = 8) :: emission = 0.0    ! Emission at 10 meters [# / cm^3 / s]
-        real(kind = 8) :: deposition = 0.0  ! Deposition at the ground [# / cm^3 / s]
-        real(kind = 8) :: Henry_const       ! Henry constant for resistance calculations [M / atm] (from chemistry_mod)
-        real(kind = 8) :: reactivity        ! Reactivity (f0) for resistance calculations [unitless] (from chemistry_mod)
-        integer :: file_unit
-        logical :: file_created
-        real(kind = 8) :: r_st, r_m, r_lu, r_dc, r_cl, r_gs, r_b, r_c ! Molecule specific resistances [s/m]. r_a in chemistry_mod
-        character(len = 16) :: name
-    contains
-        procedure(compute_emission_interface), deferred :: compute_emission ! Emission computation routine (written in the derived class)
-        procedure(compute_reaction_rate_interface), deferred :: compute_reaction_rate ! Reaction rate computation routine (written in the derived class)
-        ! Resistance and deposition computations
-        procedure :: compute_quasi_laminar_resistance
-        procedure :: compute_canopy_resistance
-        procedure :: compute_deposition_velocity
-        procedure :: compute_deposition
-        procedure :: output
-        procedure :: close_file
+type, abstract :: chemical_element
+    real(kind = 8) :: concentration(nz) ! Concentration in the atmospheric column [# / cm^3]
+    real(kind = 8) :: parameterized_tendency(2:nz-1)    ! Tendency from emission, deposition, chemical reactions [# / cm^3 / s]
+    real(kind = 8) :: dynamical_tendency(nz-2)    ! Tendency from atmospheric turbulence (computed in dynamics_mod) [# / cm^3 / s]
+    real(kind = 8) :: reaction_rate(2:nz-1)         ! Reaction rate.
+    real(kind = 8) :: molar_mass                  ! Molar mass [g / mol]
+    real(kind = 8) :: emission = 0.0    ! Emission at 10 meters [# / cm^3 / s]
+    real(kind = 8) :: deposition = 0.0  ! Deposition at the ground [# / cm^3 / s]
+    real(kind = 8) :: Henry_const       ! Henry constant for resistance calculations [M / atm] (from chemistry_mod)
+    real(kind = 8) :: reactivity        ! Reactivity (f0) for resistance calculations [unitless] (from chemistry_mod)
+    integer :: file_unit
+    logical :: file_created
+    real(kind = 8) :: r_st, r_m, r_lu, r_dc, r_cl, r_gs, r_b, r_c ! Molecule specific resistances [s/m]. r_a in chemistry_mod
+    character(len = 16) :: name
+contains
+    procedure(compute_emission_interface), deferred :: compute_emission ! Emission computation routine (written in the derived class)
+    procedure(compute_reaction_rate_interface), deferred :: compute_reaction_rate ! Reaction rate computation routine (written in the derived class)
+    ! Resistance and deposition computations
+    procedure :: compute_quasi_laminar_resistance
+    procedure :: compute_canopy_resistance
+    procedure :: compute_deposition_velocity
+    procedure :: compute_deposition
+    procedure :: output
+    procedure :: close_file
 
-        ! Tendency computations
-        procedure :: compute_parameterized_tendency
-        procedure :: compute_dynamical_tendency
+    ! Tendency computations
+    procedure :: compute_parameterized_tendency
+    procedure :: compute_dynamical_tendency
 
-        ! Initializator (because gfortran 5 lacks type parameters)
-        procedure :: init
-    end type
+    ! Initializator (because gfortran 5 lacks type parameters)
+    procedure :: init
+end type
 
     ! type, extends(chemical_element) :: alpha_pinene_type
     ! PURPOSE: The alpha pinene type derived from chemical_element
@@ -315,13 +315,13 @@ module prognostics_mod
 
     ! type, abstract :: chemical_reaction
     ! PURPOSE: base type for chemical reactions.
-    type, abstract :: chemical_reaction
-        real(kind = 8) :: rate_coefficient(2:nz-1)
-        real(kind = 8) :: rate(2:nz-1)
-    contains
-        procedure(compute_chemistry_interface), deferred, private :: compute_rate_coefficient
-        procedure(compute_chemistry_interface), deferred :: compute_rate
-    end type
+type, abstract :: chemical_reaction
+    real(kind = 8) :: rate_coefficient(2:nz-1)
+    real(kind = 8) :: rate(2:nz-1)
+contains
+    procedure(compute_chemistry_interface), deferred, private :: compute_rate_coefficient
+    procedure(compute_chemistry_interface), deferred :: compute_rate
+end type
 
     type, extends(chemical_reaction) :: O3_diss_type
     contains
@@ -1483,7 +1483,7 @@ contains
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: level
 
-        this%rate_coefficient(level) = 2.03D-16*(progn%T(level)/300)**4.57*EXP(693/progn%T(level)) ! TODO
+        this%rate_coefficient(level) = 2.03D-16*(progn%T(level)/300)**4.57*EXP(693/progn%T(level)) !
 
     end subroutine
 
