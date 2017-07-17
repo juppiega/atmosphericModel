@@ -1,7 +1,7 @@
 BUILDING:
- -Execute "make all" in the Debug folder.
+ -Execute "make all" in the Release folder.
 
  RUNNING:
  -Execute command
-    $ Debug/atmosphericModel
+    $ Release/atmosphericModel
  in atmosphericModel/ folder (where the output/ folder resides).
