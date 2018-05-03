@@ -68,11 +68,15 @@ PROGRAM main
             ! Set prognostics boundary conditions
             CALL set_boundary_conditions(progn, time)
 
+            !print *, 'Entering dynamics'
             ! Compute values at next time step: u(n+1) = u(n) + dt * f(n), where f = du/dt
             call compute_dynamics(progn, euler_step) ! Compute dynamics tendencies (turbulent fluxes)
+            !print *, 'Passed dynamics'
             call progn%compute_diagnostics(surf_pressure)
+
             call compute_parameterizations(progn)    ! Compute parameterizations (chemistry emissions, depositions)
             call progn%euler_next()                  ! Advance to the next timestep using forward Euler
+
         else
             call test_chemistry(progn)
          end if
@@ -146,6 +150,23 @@ CONTAINS
         OPEN(20, FILE = TRIM(ADJUSTL(outdir))//'/PM.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
         OPEN(21, FILE = TRIM(ADJUSTL(outdir))//'/PV.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
         OPEN(22, FILE = TRIM(ADJUSTL(outdir))//'/size_distribution.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(23, FILE = TRIM(ADJUSTL(outdir))//'/E_tot.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(24, FILE = TRIM(ADJUSTL(outdir))//'/dissipation.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(25, FILE = TRIM(ADJUSTL(outdir))//'/transport.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(26, FILE = TRIM(ADJUSTL(outdir))//'/shear_production.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(27, FILE = TRIM(ADJUSTL(outdir))//'/mixing_length.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(28, FILE = TRIM(ADJUSTL(outdir))//'/flux_u.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(29, FILE = TRIM(ADJUSTL(outdir))//'/flux_v.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(31, FILE = TRIM(ADJUSTL(outdir))//'/flux_t.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(32, FILE = TRIM(ADJUSTL(outdir))//'/flux_e.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(33, FILE = TRIM(ADJUSTL(outdir))//'/E_kin.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(34, FILE = TRIM(ADJUSTL(outdir))//'/E_pot.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(35, FILE = TRIM(ADJUSTL(outdir))//'/buoyancy_production.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(36, FILE = TRIM(ADJUSTL(outdir))//'/theta_u.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(38, FILE = TRIM(ADJUSTL(outdir))//'/w_kin.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(39, FILE = TRIM(ADJUSTL(outdir))//'/hd.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(40, FILE = TRIM(ADJUSTL(outdir))//'/q.dat'    , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(41, FILE = TRIM(ADJUSTL(outdir))//'/flux_q.dat'    , STATUS = 'REPLACE', ACTION = 'WRITE')
     END SUBROUTINE open_files
 
 
@@ -181,6 +202,7 @@ CONTAINS
         WRITE(13, outfmt) progn%ua                  ! [m s-1], u wind
         WRITE(14, outfmt) progn%va                  ! [m s-1], v wind
         WRITE(15, outfmt) progn%theta               ! [K], potential temperature
+        WRITE(40, outfmt) progn%q
         if (output_chemistry) then
             !print *, progn%OH%concentration(2)
             call progn%O3%output
@@ -247,6 +269,23 @@ CONTAINS
         close(20)
         close(21)
         close(22)
+        close(23)
+        close(24)
+        close(25)
+        close(26)
+        close(27)
+        close(28)
+        close(29)
+        close(31)
+        close(32)
+        close(33)
+        close(34)
+        close(35)
+        close(36)
+        close(38)
+        close(39)
+        close(40)
+        close(41)
         if (output_chemistry) then
             call progn%O3%close_file
             call progn%O1D%close_file
@@ -279,6 +318,7 @@ CONTAINS
     subroutine prognostics_init(progn)
         implicit none
         type(prognostics_type), intent(inout) :: progn
+        integer :: i
 
         ! Zonal wind: u(0) = 0, u(nz) = ug, linear profile
         progn%ua = 0.0
@@ -291,9 +331,22 @@ CONTAINS
         progn%va_mid = progn%va
 
         ! Potential temperature: Almost constant, but theta(nz) = 30 C
-        progn%theta = 273.15 + 25.0
-        progn%theta(nz) = 273.15 + 30.0
+        progn%theta = 273.15 + 20.0
+        i = 2
+        do while(z(i) < 1500)
+            i = i + 1
+        end do
+        progn%theta(i:nz) = progn%theta(1) + 50*(z(i:nz) - z(i))/1E3
         progn%theta_mid = progn%theta
+
+        progn%q(1:i) = 13D-3 - ((13D-3 - 1D-3) / 1500) * z(1:i)! + 1D4
+        progn%q(i:nz) = 1D-3! + 1D4
+
+        ! Total turbulent energy
+        progn%E_tot = 1E-1
+
+        ! Dry thermal top
+        progn%hd = zmid(nz-2)
 
         ! Compute middle tendencies for leapfrog
         !call compute_dynamics(progn, leapfrog_atPreviousFullTime)

@@ -62,15 +62,15 @@ SUBROUTINE Time_Init()
   ! Simulation time period
   !
   time_start = 0
-  time_end = 5*86400 + time_start
+  time_end = 4.5*86400 + time_start
 
   !
   ! Time steps
   !
-  dt = 0.5
+  dt = 0.1
   dt_chem = 60
   dt_aero = 10.0
-  dt_output = 3600
+  dt_output = 1800
 
   !
   ! Get the Julian date of Aug. 10, 2011
@@ -81,9 +81,9 @@ SUBROUTINE Time_Init()
   ! Start to run chemistry module after 1 day to save computation time
   !
   if (box) then
-    time_start_chemistry = 0*24*one_hour + time_start
+    time_start_chemistry = 5*24*one_hour + time_start
   else
-    time_start_chemistry = 3*24*one_hour + time_start
+    time_start_chemistry = 5*24*one_hour + time_start
   end if
   time_start_aerosol = time_start_chemistry
 

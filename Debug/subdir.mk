@@ -9,6 +9,7 @@ F90_SRCS += \
 ../chemistry_mod.f90 \
 ../derivatives_mod.f90 \
 ../dynamics_mod.f90 \
+../fft_mod.f90 \
 ../grid_mod.f90 \
 ../main.f90 \
 ../meteorology_mod.f90 \
@@ -29,6 +30,7 @@ OBJS += \
 ./chemistry_mod.o \
 ./derivatives_mod.o \
 ./dynamics_mod.o \
+./fft_mod.o \
 ./grid_mod.o \
 ./main.o \
 ./meteorology_mod.o \
@@ -46,7 +48,7 @@ OBJS += \
 %.o: ../%.f90
 	@echo 'Building file: $<'
 	@echo 'Invoking: GNU Fortran Compiler'
-	gfortran -funderscoring -O0 -g3 -Wall -c -fmessage-length=0 -fcheck=all -fmax-errors=15 -o "$@" "$<"
+	gfortran -funderscoring -O3 -g -Wall -c -fmessage-length=0 -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 
@@ -56,9 +58,11 @@ boundary_conditions_mod.o: ../boundary_conditions_mod.f90 parameters_mod.o progn
 
 chemistry_mod.o: ../chemistry_mod.f90 grid_mod.o parameters_mod.o time_mod.o
 
-derivatives_mod.o: ../derivatives_mod.f90 grid_mod.o
+derivatives_mod.o: ../derivatives_mod.f90 fft_mod.o grid_mod.o
 
 dynamics_mod.o: ../dynamics_mod.f90 derivatives_mod.o grid_mod.o parameters_mod.o prognostics_mod.o time_mod.o
+
+fft_mod.o: ../fft_mod.f90 parameters_mod.o
 
 grid_mod.o: ../grid_mod.f90 parameters_mod.o
 
@@ -69,7 +73,7 @@ meteorology_mod.o: ../meteorology_mod.f90 grid_mod.o parameters_mod.o time_mod.o
 %.o: ../%.f
 	@echo 'Building file: $<'
 	@echo 'Invoking: GNU Fortran Compiler'
-	gfortran -funderscoring -O0 -g3 -Wall -c -fmessage-length=0 -fcheck=all -fmax-errors=15 -o "$@" "$<"
+	gfortran -funderscoring -O3 -g -Wall -c -fmessage-length=0 -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 

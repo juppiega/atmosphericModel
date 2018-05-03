@@ -9,6 +9,9 @@ function plotTimeseriesSurf(varname, chemname)
   elseif strcmpi(varname,'v')
     load('va.dat')
     var = va;
+  elseif strcmpi(varname,'q')
+    load('q.dat')
+    var = q;
   elseif strcmpi(varname,'theta')
     load('theta.dat')
     var = theta;
@@ -27,16 +30,26 @@ function plotTimeseriesSurf(varname, chemname)
     time = time(2:end);
   elseif strcmpi(varname,'Kh')
     load('Kh.dat')
-    var = Kh;
+    var = (Kh);
     h = (h(2:end) + h(1:end-1)) / 2;
     time = time(2:end);
   elseif strcmpi(varname,'Ri')
     load('Ri.dat')
-    var = Ri;
+    var = log10(abs(Ri));
+    h = (h(2:end) + h(1:end-1)) / 2;
+    time = time(2:end);
+    varname = 'log10(abs(Ri))'
+  elseif strcmpi(varname,'t_diff')
+    theta = load('theta.dat');
+    theta_u = load('theta_u.dat');
+    var = theta_u - theta(2:end,1:end-1);
+    var(var < -200) = 0;
     h = (h(2:end) + h(1:end-1)) / 2;
     time = time(2:end);
   else
-    error('Unrecognized variable name')
+    var = load([varname,'.dat']);
+    h = (h(2:end) + h(1:end-1)) / 2;
+    time = time(2:end);
   end
   
   if length(time) < size(var,1)
@@ -60,6 +73,9 @@ function plotTimeseriesSurf(varname, chemname)
   view(2)
   axis tight
   colorbar
+  if strcmpi(varname,'w_kin') || strcmpi(varname,'flux_t')
+      caxis([-max(var(:)), max(var(:))])
+  end
   if size_distrib
     set(gca, 'YScale', 'log')
   end

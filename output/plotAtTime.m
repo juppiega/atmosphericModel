@@ -36,7 +36,7 @@ function plotAtTime(varname, days, hours, minutes)
   load('time.dat')
   
   
-  plotTime = days + hours/24 + minutes/60;
+  plotTime = days + hours/24 + minutes/(24*60);
   if plotTime > max(time) || plotTime < min(time)
     error(['Plot time not in the domain of model output times: [', num2str(time(1)),', ', num2str(time(end)),'] days'])
   end

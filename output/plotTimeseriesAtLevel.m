@@ -2,6 +2,9 @@ function [] = plotTimeseriesAtLevel(varname, level, plotAll)
 
 y = load([varname,'.dat']);
 load('time.dat')
+if size(y,1) ~= length(time)
+    time(1) = [];
+end
 
 figure;
 if time(end) > 3 && ~plotAll

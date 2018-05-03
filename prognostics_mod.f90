@@ -268,9 +268,11 @@ end type
     ! type prognostics_type
     ! PURPOSE: Contains all of the prognostics (ua, va, theta and chemical components)
     type prognostics_type
-        real(kind = 8), dimension(nz) :: ua, ua_mid, va, va_mid, theta, theta_mid ! Prognostics (*_mid are for leapfrog)
-        real(kind = 8), dimension(nz-2) :: dudt, dvdt, dThetaDt ! Tendencies [m/s^2] and [K/s]
+        real(kind = 8), dimension(nz) :: ua, ua_mid, va, va_mid, theta, theta_mid, q ! Prognostics (*_mid are for leapfrog)
+        real(kind = 8), dimension(nz-2) :: dudt, dvdt, dThetaDt, dqdt ! Tendencies [m/s^2] and [K/s]
         real(kind = 8), dimension(nz) :: T, M, N2, O2, pressure
+        real(kind = 8), dimension(nz-1) :: E_tot, DEDt
+        real(kind = 8) :: hd ! Dry thermal top
         type(alpha_pinene_type) :: alpha_pinene                 ! Instantation of alpha_pinene
         type(isoprene_type) :: isoprene                         ! Instantation of isoprene
         type(OH_type) :: OH
@@ -627,6 +629,8 @@ contains
         this%ua(updInd) = this%ua(updInd) + dt * this%dudt
         this%va(updInd) = this%va(updInd) + dt * this%dvdt
         this%theta(updInd) = this%theta(updInd) + dt * this%dThetaDt
+        this%q(updInd) = this%q(updInd) + dt * this%dqdt
+        this%E_tot = max(this%E_tot + dt * this%dEDt, 1D-6)
 
         if (.not. model_chemistry .and. time >= time_start_chemistry) then
             call compute_radiation()

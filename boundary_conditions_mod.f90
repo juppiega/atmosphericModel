@@ -21,6 +21,7 @@ subroutine set_boundary_conditions(progn, time)
 
     ! Read surface theta from file.
     call surface_values(surfaceTheta, time)
+    progn%q(1) = 0.622 * 288513966.0*exp(-4302.645/(surfaceTheta-29.65)) / 1013
     progn%theta(1) = surfaceTheta
     progn%theta_mid(1) = surfaceTheta ! For leapfrog, not fully implemented.
 
@@ -99,7 +100,10 @@ SUBROUTINE surface_values(temperature, time)
   !
   ! linear interpolation between previous and next temperature data value
   !
-  temperature = temp1 + x*(temp2 - temp1) + 273.15_dp ! now in Kelvin
+  !temperature = temp1 + x*(temp2 - temp1) + 273.15_dp ! now in Kelvin
+
+  temperature = sin(2*PI*time/86400 + PI)*6 + 19 + 273.15
+
 
 END SUBROUTINE surface_values
 
