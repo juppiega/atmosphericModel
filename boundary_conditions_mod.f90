@@ -19,6 +19,8 @@ subroutine set_boundary_conditions(progn, time)
     ! Locals:
     real(kind = 8) :: surfaceTheta
 
+    progn%E_tot(nz-1) = 1D-2
+
     ! Read surface theta from file.
     call surface_values(surfaceTheta, time)
     progn%q(1) = 0.622 * 288513966.0*exp(-4302.645/(surfaceTheta-29.65)) / 1013

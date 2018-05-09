@@ -8,6 +8,31 @@ function plotAtTime(varname, days, hours, minutes)
   elseif strcmpi(varname,'v')
     load('va.dat')
     var = va;
+  elseif strcmpi(varname,'q')
+    load('q.dat')
+    var = q;
+  elseif strcmpi(varname,'q_k')
+    load('q_k.dat')
+    var = q;
+  elseif strcmpi(varname,'q_m')
+    load('q_m.dat')
+    var = q;
+  elseif strcmpi(varname,'flux_t')
+    load('flux_t.dat')
+    var = flux_t;
+    h = (h(2:end) + h(1:end-1)) / 2;
+  elseif strcmpi(varname,'flux_q')
+    load('flux_q.dat')
+    var = flux_q;
+    h = (h(2:end) + h(1:end-1)) / 2;
+  elseif strcmpi(varname,'flux_q_k')
+    load('flux_q_k.dat')
+    var = flux_q_k;
+    h = (h(2:end) + h(1:end-1)) / 2;
+  elseif strcmpi(varname,'flux_q_m')
+    load('flux_q_m.dat')
+    var = flux_q_m;
+    h = (h(2:end) + h(1:end-1)) / 2;
   elseif strcmpi(varname,'theta')
     load('theta.dat')
     var = theta-273.15;

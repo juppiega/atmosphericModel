@@ -65,11 +65,12 @@ function plotTimeseriesSurf(varname, chemname)
     size_distrib = true;
   end
  
-  
-  [X,Y] = meshgrid(time, h);
+  %ind = time >= 3.5; 
+  ind = 1:length(time);
+  [X,Y] = meshgrid(time(ind), h);
   
   figure;
-  surf(X, Y, var','edgecolor','none')
+  surf(X, Y, var(ind,:)','edgecolor','none')
   view(2)
   axis tight
   colorbar

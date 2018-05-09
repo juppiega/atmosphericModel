@@ -336,7 +336,7 @@ CONTAINS
         do while(z(i) < 1500)
             i = i + 1
         end do
-        progn%theta(i:nz) = progn%theta(1) + 50*(z(i:nz) - z(i))/1E3
+        progn%theta(i:nz) = progn%theta(1) + 3*(z(i:nz) - z(i))/1E3
         progn%theta_mid = progn%theta
 
         progn%q(1:i) = 13D-3 - ((13D-3 - 1D-3) / 1500) * z(1:i)! + 1D4
@@ -356,6 +356,9 @@ CONTAINS
         progn%va_mid(updInd) = progn%va(updInd) + 0.5 * dt * progn%dvdt
         progn%theta_mid(updInd) = progn%theta(updInd) + 0.5 * dt * progn%dThetaDt
         !write(*,*) progn%ua_mid - progn%ua
+
+        allocate(w_subsidence(nz))
+        w_subsidence = w_subsidence_top * z/z(nz)
 
         ! Initialize chemistry
         call progn%init_chemical_elements()

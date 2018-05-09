@@ -51,7 +51,7 @@ module derivatives_mod
                            + 8*vector(4:N-1) - vector(5:N)) / (12*dz)
 
         zDeriv_E_tot(N-1) = 0.5 * (diff(N-2) + diff(N-1))
-        zDeriv_E_tot(N) = (0.5*vector(N-2) - 2*vector(N-1) + 1.5*vector(N)) / (zmid(N) - zmid(N-1))
+        zDeriv_E_tot(N) = 0!(0.5*vector(N-2) - 2*vector(N-1) + 1.5*vector(N)) / (zmid(N) - zmid(N-1))
        !zDeriv_E_tot(2:N-1) = 0.5 * (diff(1:N-2) + diff(2:N-1))
 !        zDeriv_E_tot(1) = diff(1)
 !        zDeriv_E_tot(N) = 0

@@ -7,7 +7,6 @@
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 MODULE parameters_mod
-
 !-----------------------------------------------------------------------------------------
 ! Variable declaration
 !-----------------------------------------------------------------------------------------
@@ -34,6 +33,8 @@ real(kind = 8), parameter :: surf_pressure = 101325 ![Pa]
 real(kind = 8), parameter :: z0 = 0.0002 ! Roughness length [m]
 
 real(kind = 8) :: ug = 10, vg = 0, thetaUpperBoundary = 303.15 ! Boundary conditions
+real(kind = 8), parameter :: w_subsidence_top = -0.5D-2
+real(kind = 8), allocatable :: w_subsidence(:)
 
 integer, parameter :: leapfrog_atMidpoint = 1, leapfrog_atPreviousFullTime = 2, euler_step = 3
 integer, parameter :: euler = 1, leapfrog = 2, RK4 = 3

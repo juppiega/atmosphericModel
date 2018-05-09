@@ -244,7 +244,7 @@ CONTAINS
         implicit none
         real(kind = 8), intent(in) :: K(:), gradient(:), updraft(:), environment(:)
         real(kind = 8), intent(inout) :: flux(:)
-        real(kind = 8) :: midlevel_updraft(nz-1), updraft_flux(nz)
+        real(kind = 8) :: midlevel_updraft(nz-1), updraft_flux(nz), midlevel_env(nz-1)
         integer :: i
 
         flux(2:size(flux)) = -K(2:size(flux)) * gradient(2:size(flux))
@@ -397,12 +397,14 @@ CONTAINS
     function compute_E_tot_Tendency() result(dEdt)
         implicit none
         real(kind = 8), allocatable :: dEdt(:)
+        real(kind = 8) :: subsid(nz-1)
 
         dissipation_ = 0.07 * (E_tot_**(1.5) / mixingLength_)
         shear_prod_ = -flux_uw_*dUDz_ - flux_vw_*DVDz_
         transport_ = -zDeriv_E_tot(flux_Etot_w_)
         buoyancy_ = 2 * N_squared_ * flux_ThetaW / dThetaDz_
-        dEdt = shear_prod_ + transport_ - dissipation_
+        subsid = 0.5*(w_subsidence(1:nz-1) + w_subsidence(2:nz)) * DEDz_
+        dEdt = shear_prod_ + transport_ - dissipation_ - subsid
         where (N_squared_ < 0)
             dEdt = dEdt + buoyancy_
         end where
@@ -415,7 +417,8 @@ CONTAINS
         implicit none
         real(kind = 8), allocatable :: dudt(:)
 
-        dudt = - zDerivMidLevel(flux_uw_) + fcor * (v_(updInd) - vg) ! - (u_(updInd) - 5)/3600
+        dudt = - zDerivMidLevel(flux_uw_) + fcor * (v_(updInd) - vg) - &
+                 w_subsidence(updInd) * 0.5*(dUdz_(1:nz-2) + dUdz_(2:nz-1)) ! - (u_(updInd) - 5)/3600
 
     end function
 
@@ -425,7 +428,8 @@ CONTAINS
         implicit none
         real(kind = 8), allocatable :: dvdt(:)
 
-        dvdt = - zDerivMidLevel(flux_vw_) - fcor * (u_(updInd) - ug) ! - v_(updInd)/3600
+        dvdt = - zDerivMidLevel(flux_vw_) - fcor * (u_(updInd) - ug) - &
+                w_subsidence(updInd) * 0.5*(dVdz_(1:nz-2) + dVdz_(2:nz-1))  ! - v_(updInd)/3600
 
     end function
 
@@ -435,7 +439,8 @@ CONTAINS
         implicit none
         real(kind = 8), allocatable :: dThetaDt(:)
 
-        dThetaDt = -zDerivMidLevel(flux_ThetaW)
+        dThetaDt = -zDerivMidLevel(flux_ThetaW) - w_subsidence(updInd) * 0.5*(dThetaDz_(1:nz-2) + dThetaDz_(2:nz-1)) &
+                    -1/86400D0
 
     end function
 
@@ -443,7 +448,7 @@ CONTAINS
         implicit none
         real(kind = 8), allocatable :: dqDt(:)
 
-        dqDt = -zDerivMidLevel(flux_qw_)
+        dqDt = -zDerivMidLevel(flux_qw_) - w_subsidence(updInd) * 0.5*(dqdz_(1:nz-2) + dqdz_(2:nz-1))
 
     end function
 
@@ -564,6 +569,7 @@ CONTAINS
         DVDz_ = zDeriv(v_)
         dqdz_ = zDeriv(q_)
         dThetaDz_ = zDeriv(theta_)
+        dThetaDz_(nz-1) = 3D-3
         verticalWindShear_ = compute_verticalWindShear()
 
         ! Richardson number
@@ -611,7 +617,11 @@ CONTAINS
             call compute_fluxes(flux_vw_, Km_, dVDz_, v_u_, v_)
             call compute_E_flux()
             !dqdz_ = 0
-            call compute_fluxes(flux_qw_, Kh_, dqdz_, q_u_, q_)
+            if (time < 3.5*86400) then
+                call compute_fluxes(flux_qw_, Kh_, dqdz_, q_u_, q_)
+            else
+                call compute_fluxes(flux_qw_, Kh_, dqdz_, q_, q_)
+            end if
             call compute_fluxes(flux_ThetaW, Kh_, dThetaDz_, theta_u_, theta_)
         end if
 
