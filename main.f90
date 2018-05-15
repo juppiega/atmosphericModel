@@ -167,6 +167,11 @@ CONTAINS
         OPEN(39, FILE = TRIM(ADJUSTL(outdir))//'/hd.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
         OPEN(40, FILE = TRIM(ADJUSTL(outdir))//'/q.dat'    , STATUS = 'REPLACE', ACTION = 'WRITE')
         OPEN(41, FILE = TRIM(ADJUSTL(outdir))//'/flux_q.dat'    , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(42, FILE = TRIM(ADJUSTL(outdir))//'/T.dat'    , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(43, FILE = TRIM(ADJUSTL(outdir))//'/P.dat'    , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(44, FILE = TRIM(ADJUSTL(outdir))//'/RH.dat'    , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(45, FILE = TRIM(ADJUSTL(outdir))//'/flux_q_local.dat'    , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(46, FILE = TRIM(ADJUSTL(outdir))//'/mass_flux.dat'    , STATUS = 'REPLACE', ACTION = 'WRITE')
     END SUBROUTINE open_files
 
 
@@ -203,6 +208,9 @@ CONTAINS
         WRITE(14, outfmt) progn%va                  ! [m s-1], v wind
         WRITE(15, outfmt) progn%theta               ! [K], potential temperature
         WRITE(40, outfmt) progn%q
+        WRITE(42, outfmt) progn%T
+        WRITE(43, outfmt) progn%pressure
+        WRITE(44, outfmt) progn%RH
         if (output_chemistry) then
             !print *, progn%OH%concentration(2)
             call progn%O3%output
@@ -286,6 +294,11 @@ CONTAINS
         close(39)
         close(40)
         close(41)
+        close(42)
+        close(43)
+        close(44)
+        close(45)
+        close(46)
         if (output_chemistry) then
             call progn%O3%close_file
             call progn%O1D%close_file

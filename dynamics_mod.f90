@@ -31,16 +31,17 @@ MODULE dynamics_mod
     !
     ! Some constants
     !
-    REAL(dp), PARAMETER :: lambda_ = 300.0_dp  ! maximum mixing length, meters
+    REAL(dp), PARAMETER :: lambda_ = 200.0_dp  ! maximum mixing length, meters
     REAL(dp), PARAMETER :: vonk_ = 0.4_dp      ! von Karman constant, dimensionless
     real(dp), parameter :: C_f = 0.185, C_n = 2.0, C_eps = (0.17)**1.5, C_r = 2.0
     real(dp), parameter :: Pr_0 = (0.17)**2/(2*(0.145)**2)
+    real(dp), parameter :: hd_div = 2D0
 
     ! Variables for computing the boundary layer turbulent fluxes.
     real(kind = 8), dimension(nz-1) :: richardsonNum_, Km_, Kh_, &
         verticalWindShear_, mixingLength_, &
         dThetaDz_, dUDz_, DVDz_, DEDz_, dqdz_, E_tot_, E_pot_, E_kin_, N_squared_, &
-        flux_uw_, flux_vw_, flux_ThetaW, flux_Etot_w_, flux_qw_, f_tau_, f_theta_,&
+        flux_uw_, flux_vw_, flux_ThetaW, flux_Etot_w_, flux_qw_, flux_qw_k, f_tau_, f_theta_,&
         dissipation_, shear_prod_, transport_, buoyancy_, E_u_
 
     real(kind = 8), dimension(nz) :: u_u_, v_u_, q_u_, theta_u_, w_kin_, mass_flux_, detrainment_
@@ -91,24 +92,16 @@ CONTAINS
     !     (real*8) : mixingLength
     subroutine compute_mixingLength_TEMF()
         implicit none
-        real(kind = 8), allocatable :: reciproc(:), mixingLength_conv(:)
-        integer :: i
+        real(kind = 8), allocatable :: reciproc(:)
 
         reciproc = 1 / (vonk_ * 0.5*(z(1:size(z)-1) + z(2:size(z)))) + &
-            fcor / (C_f * sqrt(f_tau_*E_kin_)) + &
-            sqrt(abs(N_squared_)) / (C_n * sqrt(f_tau_*E_kin_))
+            abs(fcor) / (C_f * sqrt(f_tau_*E_kin_)) + &
+            1.0/lambda_
+        where (N_squared_ > 0)
+            reciproc = reciproc + sqrt(N_squared_) / (C_n * sqrt(f_tau_*E_kin_))
+        end where
 
         mixingLength_ = 1 / reciproc
-
-        if (theta_(2) < theta_(1)) then
-            reciproc = 1 / (vonk_ * zmid) + 3 / (vonk_ * (hd_ - zmid))
-            mixingLength_conv = 1 / reciproc
-            i = 1
-            do while (zmid(i) < hd_ / 2 .or. (mixingLength_conv(i) > mixingLength_(i) .and. zmid(i) < hd_))
-                i = i + 1
-            end do
-            mixingLength_(1:i) = mixingLength_conv(1:i)
-        end if
 
     end subroutine
 
@@ -164,7 +157,7 @@ CONTAINS
     function compute_Km_TEMF() result(Km)
         implicit none
         real(kind = 8) :: theta_variance(nz-1), theta_mid(nz-1)
-        real(kind = 8), allocatable :: Km(:), Km_conv(:)
+        real(kind = 8), allocatable :: Km(:), Km_conv(:), reciproc(:), mixingLength_conv(:)
         integer :: i
 
         theta_mid = (theta_(2:nz) + theta_(1:nz-1)) / 2.0
@@ -173,13 +166,21 @@ CONTAINS
             g*f_theta_*sqrt(E_kin_*theta_variance)/theta_mid)
 
         if (flux_ThetaW(1) > 0) then
-            Km_conv = (0.17**2)*mixingLength_*sqrt(E_kin_)/C_eps
+            reciproc = 1 / (vonk_ * zmid) + 3 / (vonk_ * (hd_ - zmid))
+            mixingLength_conv = 1 / reciproc
+            Km_conv = (0.17**2)*mixingLength_conv*sqrt(E_kin_)/C_eps
             i = 1
-            do while (zmid(i) < hd_ / 2 .or. (Km_conv(i) > Km(i) .and. zmid(i) < hd_))
+            do while (zmid(i) <= hd_)
+                if (zmid(i) <= hd_/hd_div .or. Km_conv(i) > Km(i)) then
+                    Km(i) = Km_conv(i)
+                else
+                    Km(i) = ((zmid(i) - hd_/hd_div)*Km(i) + (hd_ - zmid(i))*Km_conv(i)) / (hd_ - hd_/hd_div)
+                end if
                 i = i + 1
             end do
-            Km(1:i) = Km_conv(1:i)
         end if
+
+        Km = max(Km, 1.57D-4)
 
     end function
 
@@ -206,19 +207,28 @@ CONTAINS
     ! PURPOSE: Compute turbulent coefficient for heat and chemical transport.
     function compute_Kh_TEMF() result(Kh)
         implicit none
-        real(kind = 8), allocatable :: Kh(:), Kh_conv(:)
+        real(kind = 8), allocatable :: Kh(:), Kh_conv(:), reciproc(:), mixingLength_conv(:)
         integer :: i
 
         Kh = 2*F_theta_**2 * E_kin_ * mixingLength_ / (C_eps * sqrt(E_tot_))
 
         if (flux_ThetaW(1) > 0) then
-            Kh_conv = (0.17**2)*mixingLength_*sqrt(E_kin_)/C_eps/Pr_0
+            reciproc = 1 / (vonk_ * zmid) + 3 / (vonk_ * (hd_ - zmid))
+            mixingLength_conv = 1 / reciproc
+            Kh_conv = (0.17**2)*mixingLength_conv*sqrt(E_kin_)/C_eps/Pr_0
             i = 1
-            do while (zmid(i) < hd_ / 2 .or. (Kh_conv(i) > Kh(i) .and. zmid(i) < hd_))
+            do while (zmid(i) <= hd_)
+                if (zmid(i) <= hd_/hd_div .or. Kh_conv(i) > Kh(i)) then
+                    Kh(i) = Kh_conv(i)
+                    mixingLength_(i) = mixingLength_conv(i)
+                else
+                    Kh(i) = ((zmid(i) - hd_/hd_div)*Kh(i) + (hd_ - zmid(i))*Kh_conv(i)) / (hd_ - hd_/hd_div)
+                end if
                 i = i + 1
             end do
-            Kh(1:i) = Kh_conv(1:i)
         end if
+
+        Kh = max(Kh, 1.57D-4 / 0.733)
 
     end function
 
@@ -230,12 +240,12 @@ CONTAINS
         flux_Etot_w_ = -Km_ * DEDz_
         if (flux_ThetaW(1) > 0) then
             M_mid = 0
-            i = 2
-            do while (i < nz)
+            i = 1
+            do while (zmid(i) < hd_)
                 M_mid(i) = interp1_scalar(z, mass_flux_, zmid(i))
                 i = i + 1
             end do
-            flux_Etot_w_(2:nz-1) = flux_Etot_w_(2:nz-1) + M_mid(2:nz-1) * (E_u_(2:nz-1) - E_tot_(2:nz-1)) !!!!!!!!!!!! TEST
+            flux_Etot_w_ = flux_Etot_w_ + M_mid * (E_u_ - E_tot_)
         end if
 
     end subroutine
@@ -250,14 +260,14 @@ CONTAINS
         flux(2:size(flux)) = -K(2:size(flux)) * gradient(2:size(flux))
         if (flux_ThetaW(1) > 0) then
             updraft_flux = mass_flux_ * (updraft - environment)
-            i = 2
+            i = 1
             midlevel_updraft = 0
             do while(zmid(i) < hd_)
                 midlevel_updraft(i) = interp1_scalar(z, updraft_flux, zmid(i))
                 i = i + 1
             end do
 
-            flux(2:size(flux)) = flux(2:size(flux)) + midlevel_updraft(2:nz-1) !!!!! TEST
+            flux = flux + midlevel_updraft
         end if
 
     end subroutine
@@ -440,7 +450,7 @@ CONTAINS
         real(kind = 8), allocatable :: dThetaDt(:)
 
         dThetaDt = -zDerivMidLevel(flux_ThetaW) - w_subsidence(updInd) * 0.5*(dThetaDz_(1:nz-2) + dThetaDz_(2:nz-1)) &
-                    -1/86400D0
+                    -1.3/86400D0
 
     end function
 
@@ -497,7 +507,7 @@ CONTAINS
 
         do i = 1, nz
             if (w_kin_(i) < 0) then
-                hd_ = max(((z(i-1)*w_kin_(i) - z(i)*w_kin_(i-1)) / (w_kin_(i)-w_kin_(i-1))), 1000.1D0)
+                hd_ = max(((z(i-1)*w_kin_(i) - z(i)*w_kin_(i-1)) / (w_kin_(i)-w_kin_(i-1))), 100.1D0)
                 !print *, hd_
                 exit
             end if
@@ -543,6 +553,9 @@ CONTAINS
         detrainment_integral = cumtrapz(z, detrainment_)
         flux_first_level = 0.03 * w_star_surf_
         mass_flux_ = flux_first_level * exp(entr_*z - detrainment_integral)
+        where (z > hd_)
+            mass_flux_ = 0
+        end where
 
     end subroutine
 
@@ -555,6 +568,9 @@ CONTAINS
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: stepType
         CHARACTER(255) :: outfmt
+
+        w_kin_ = 0
+        mass_flux_ = 0
 
         ! Save copies to member variables of dynamics_mod.
         u_ = progn%ua
@@ -617,7 +633,9 @@ CONTAINS
             call compute_fluxes(flux_vw_, Km_, dVDz_, v_u_, v_)
             call compute_E_flux()
             !dqdz_ = 0
-            if (time < 3.5*86400) then
+            flux_qw_k(2:nz-1) = -Kh_(2:nz-1) * dqdz_(2:nz-1)
+            flux_qw_k(1) = flux_qw_(1)
+            if (time < 4.5*86400) then
                 call compute_fluxes(flux_qw_, Kh_, dqdz_, q_u_, q_)
             else
                 call compute_fluxes(flux_qw_, Kh_, dqdz_, q_, q_)
@@ -697,6 +715,9 @@ CONTAINS
             WRITE(38, outfmt) w_kin_(1:nz-1)
             WRITE(39, *) hd_
             WRITE(41, outfmt) flux_qw_
+            WRITE(45, outfmt) flux_qw_k
+            WRITE(outfmt, '(a, i3, a)') '(', nz, 'es25.16)'
+            WRITE(46, outfmt) mass_flux_
         END IF
 
     end subroutine

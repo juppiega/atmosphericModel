@@ -11,12 +11,15 @@ function plotAtTime(varname, days, hours, minutes)
   elseif strcmpi(varname,'q')
     load('q.dat')
     var = q;
+  elseif strcmpi(varname,'RH')
+    load('RH.dat')
+    var = RH * 100;
   elseif strcmpi(varname,'q_k')
     load('q_k.dat')
-    var = q;
+    var = q_k;
   elseif strcmpi(varname,'q_m')
     load('q_m.dat')
-    var = q;
+    var = q_m;
   elseif strcmpi(varname,'flux_t')
     load('flux_t.dat')
     var = flux_t;

@@ -12,6 +12,9 @@ function plotTimeseriesSurf(varname, chemname)
   elseif strcmpi(varname,'q')
     load('q.dat')
     var = q;
+  elseif strcmpi(varname,'RH')
+    load('RH.dat')
+    var = RH * 100;
   elseif strcmpi(varname,'theta')
     load('theta.dat')
     var = theta;
@@ -65,8 +68,8 @@ function plotTimeseriesSurf(varname, chemname)
     size_distrib = true;
   end
  
-  %ind = time >= 3.5; 
-  ind = 1:length(time);
+  ind = time >= 3.5; 
+  %ind = 1:length(time);
   [X,Y] = meshgrid(time(ind), h);
   
   figure;
@@ -74,6 +77,7 @@ function plotTimeseriesSurf(varname, chemname)
   view(2)
   axis tight
   colorbar
+  %shading interp
   if strcmpi(varname,'w_kin') || strcmpi(varname,'flux_t')
       caxis([-max(var(:)), max(var(:))])
   end

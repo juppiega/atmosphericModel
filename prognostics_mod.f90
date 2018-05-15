@@ -270,7 +270,7 @@ end type
     type prognostics_type
         real(kind = 8), dimension(nz) :: ua, ua_mid, va, va_mid, theta, theta_mid, q ! Prognostics (*_mid are for leapfrog)
         real(kind = 8), dimension(nz-2) :: dudt, dvdt, dThetaDt, dqdt ! Tendencies [m/s^2] and [K/s]
-        real(kind = 8), dimension(nz) :: T, M, N2, O2, pressure
+        real(kind = 8), dimension(nz) :: T, M, N2, O2, pressure, RH
         real(kind = 8), dimension(nz-1) :: E_tot, DEDt
         real(kind = 8) :: hd ! Dry thermal top
         type(alpha_pinene_type) :: alpha_pinene                 ! Instantation of alpha_pinene
@@ -736,6 +736,7 @@ contains
         implicit none
         class(prognostics_type), intent(inout) :: this
         real(kind = 8), intent(in) :: P0 ! Surface pressure [Pa]
+        real(kind = 8) :: e_sat(nz)
         integer :: i
 
         this%T = this%theta - (g/Cp) * z
@@ -744,6 +745,9 @@ contains
         do i = 2, nz
             this%pressure(i) = this%pressure(i-1) * exp(-(z(i)-z(i-1))*Mair*g / (R * (this%T(i-1)+this%T(i))/2))
         end do
+
+        e_sat = 288513966.0*exp(-4302.645/(this%T-29.65)) * 1D2 ! [Pa]
+        this%RH = this%q * this%pressure / (0.622 * e_sat)
 
         this%M = this%pressure / (R*this%T) * NA * 1D-6
         this%O2 = 0.21*this%M
