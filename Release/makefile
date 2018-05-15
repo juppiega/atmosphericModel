@@ -8,6 +8,7 @@ RM := rm -rf
 
 # All of the sources participating in the build are defined here
 -include sources.mk
+-include .metadata/.plugins/org.eclipse.cdt.make.core/subdir.mk
 -include subdir.mk
 -include objects.mk
 
@@ -22,22 +23,21 @@ endif
 # Add inputs and outputs from these tool invocations to the build variables 
 
 # All Target
-all: atmosphericModel
+all: atmosphericModelTEMF
 
 # Tool invocations
-atmosphericModel: $(OBJS) $(USER_OBJS)
+atmosphericModelTEMF: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GNU Fortran Linker'
-	gfortran  -o "atmosphericModel" $(OBJS) $(USER_OBJS) $(LIBS)
+	gfortran  -o "atmosphericModelTEMF" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) $(EXECUTABLES)$(OBJS)$(C_DEPS) atmosphericModel
+	-$(RM) $(EXECUTABLES)$(OBJS)$(C_DEPS) atmosphericModelTEMF
 	-@echo ' '
 
 .PHONY: all clean dependents
-.SECONDARY:
 
 -include ../makefile.targets
