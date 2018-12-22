@@ -34,14 +34,13 @@ contains
         end if
 
         ! Compute aerosols.
-        IF (model_aerosols.and.time>=time_start_aerosol.and.MOD(NINT((time-time_start)*10.0),NINT(dt_aero*10.0))==0)THEN
+        IF (model_aerosols.and.time>=time_start_aerosol.and.MOD(NINT((time-time_start)*10.0),NINT(dt_micro*10.0))==0)THEN
             do i = 1, nz
                 ! Set condensation vapour concentrations.
-                cond_vapour(1) = progn%H2SO4%concentration(i)*1D6
-                cond_vapour(2) = progn%ELVOC%concentration(i)*1D6
+                !cond_vapour(1) = progn%H2SO4%concentration(i)*1D6
+                !cond_vapour(2) = progn%ELVOC%concentration(i)*1D6
 
-                call compute_aerosol(progn%size_distribution(:,i), cond_vapour, progn%T(i), &
-                progn%pressure(i), progn%cond_sink(:,i), progn%PN(i), progn%PM(i), progn%PV(i))
+                !call compute_aerosol(progn%aerosol_distribution(:,i), 1.01D0, progn%PN(i), progn%PM(i), progn%PV(i))
             end do
         end if
 

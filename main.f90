@@ -56,6 +56,10 @@ PROGRAM main
 
     CALL write_files(progn, time)   ! write initial values
 
+    if (box) then
+        progn%theta = 273
+        progn%q = 0.004
+    end if
 
 
 
@@ -78,7 +82,7 @@ PROGRAM main
             call progn%euler_next()                  ! Advance to the next timestep using forward Euler
 
         else
-            call test_chemistry(progn)
+            call test_microphysics(progn)
          end if
 
 
@@ -149,7 +153,7 @@ CONTAINS
         OPEN(19, FILE = TRIM(ADJUSTL(outdir))//'/PN.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
         OPEN(20, FILE = TRIM(ADJUSTL(outdir))//'/PM.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
         OPEN(21, FILE = TRIM(ADJUSTL(outdir))//'/PV.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
-        OPEN(22, FILE = TRIM(ADJUSTL(outdir))//'/size_distribution.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(22, FILE = TRIM(ADJUSTL(outdir))//'/drop_distribution.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
         OPEN(23, FILE = TRIM(ADJUSTL(outdir))//'/E_tot.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
         OPEN(24, FILE = TRIM(ADJUSTL(outdir))//'/dissipation.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
         OPEN(25, FILE = TRIM(ADJUSTL(outdir))//'/transport.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
@@ -194,7 +198,7 @@ CONTAINS
         ! Get output format for arrays with nz layers
         !
         WRITE(outfmt, '(a, i3, a)') '(', nz, 'es25.16)'
-        WRITE(outfmt_nrbins, '(a, i3, a)') '(', nr_bins, 'es25.16)'
+        WRITE(outfmt_nrbins, '(a, i3, a)') '(', n_aer_bins, 'es25.16)'
 
         !
         ! Only save h one time at the beginning
@@ -243,7 +247,7 @@ CONTAINS
         write(19, outfmt) progn%PN
         write(20, outfmt) progn%PM
         write(21, outfmt) progn%PV
-        write(22, outfmt_nrbins) progn%size_distribution(:,2)
+        write(22, outfmt_nrbins) progn%drops_distribution(:,1)
 
 
         call parameterizations_output(progn) ! TODO: empty as of yet
@@ -378,24 +382,21 @@ CONTAINS
 
     end subroutine
 
-    subroutine test_chemistry(progn)
+    subroutine test_microphysics(progn)
         use radiation_mod
         implicit none
         type(prognostics_type), intent(inout) :: progn
-        real(kind = 8) :: PAR_val
+        real(dp) :: N_new_drops(n_aer_bins), dry_diam(n_aer_bins), a, saturation
 
-        progn%ua = 0.0
-        progn%va = 0.0
-        progn%theta = 300
-        progn%T = 300
-        progn%M = 2.4D19
-        progn%O2 = 0.21*2.4D19
-        progn%N2 = 0.78*2.4D19
-        ! Chemical elements already initialized
+        call progn%compute_diagnostics(surf_pressure)
+        saturation = progn%RH(1)-1
 
-        PAR_val = -1.0_dp!1000.0 * get_exp_coszen(0.0_dp, daynumber, latitude)
-        IF ( time >= time_start_chemistry .and. MOD( NINT((time - time_start)*10.0), NINT(dt_chem*10.0)) == 0 ) THEN
-            call compute_chemistry(progn, PAR_val)
+        IF ( time >= time_start_aerosol .and. MOD( NINT((time - time_start)*10.0), NINT(dt_micro*10.0)) == 0 ) THEN
+            call compute_aerosol(progn%aerosol_distribution(:,1), progn%T(1), progn%RH(1)-1, N_new_drops, dry_diam, &
+                                 progn%PN(1), progn%PM(1), progn%PV(1), a)
+            call compute_drops(progn%drops_distribution(:,1), progn%T(1), progn%pressure(1), saturation, &
+                                swelled_diameter, N_new_drops, dry_diam, a, progn%q(1))
+            !progn%q = 0.001
         end if
 
 

@@ -3,7 +3,8 @@ module Aerosol_mod
     use parameters_mod
     use time_mod
     IMPLICIT NONE
-    !private
+    private
+    public compute_aerosol, Aerosol_init, swelled_diameter
     !public test_aerosol
 
     !! ====================== Definition of variables =====================================================================
@@ -13,12 +14,15 @@ module Aerosol_mod
     REAL(dp), PARAMETER :: ka = 0.4D0              ! von Karman constant, dimensionless
     REAL(DP), PARAMETER :: Rg=8.3145D0             ! Universal gas constant J mol^-1 K^-1
 
-    REAL(DP), DIMENSION(nr_bins) :: diameter  ,&    ! Diameter of each size bin
+    REAL(DP), DIMENSION(n_aer_bins) :: diameter  ,&    ! Diameter of each size bin
         particle_mass                        ,&    ! mass of one particle in each size bin
         !size_distribution                        ,&    ! number concentration in each size bin
         particle_volume                      ,&    ! volume concentration in each size bin
         coag_loss                            ,&    ! coagulation loss rate of particles in each size bin
-        v_dep                                      ! Dry deposition velocity of particles
+        v_dep                                ,&      ! Dry deposition velocity of particles
+        size_multiplier                                   ,&
+        saturation_crit,&
+        swelled_diameter
 
     REAL(DP), DIMENSION(nr_cond) :: molecular_mass   ,&   ! molecular mass of the condensing vapours [kg/#]
         molecular_volume                            ,&   ! Molecule volume of condensable vapours [m^3]
@@ -46,27 +50,38 @@ module Aerosol_mod
         DSWF                          ,&    ! Downward Shortwave Radiation Flux (W/m^2)
         Mixing_height                       ! Boundary layer mixing height [m]
 
+    real(dp), parameter :: M_w = 18.01, M_s = 58.44, rho_w = 1D3, rho_s = 2160, surf_tens = 76D-3, R_v = 461
+    real(dp) :: a, b(n_aer_bins)
+
 CONTAINS
 
-    subroutine compute_aerosol(size_distribution, cond_vapour, temperature, pressure, cond_sink, PN, PM, PV)
+    subroutine compute_aerosol(size_distribution, T, saturation, N_new_drops, dry_diam, PN, PM, PV, a_out)
         implicit none
         real(kind = 8), intent(inout) :: size_distribution(:)
-        real(kind = 8), intent(in) :: cond_vapour(:), temperature, pressure
-        real(kind = 8), intent(out) :: cond_sink(:)
-        REAL(DP), intent(out) ::         PN, PM, PV                  ! Total particle number and mass concentration [cm^-3]
+        real(dp), intent(out), dimension(n_aer_bins) :: N_new_drops, dry_diam
+        real(dp), intent(in) :: T, saturation
+        REAL(DP), intent(out) ::         PN, PM, PV, a_out                  ! Total particle number and mass concentration [cm^-3]
 
+        a_out = 2*surf_tens/(T*R_v*rho_w)
+        saturation_crit = sqrt(4*a_out**3 / (27*b))
+
+        N_new_drops = 0
+        where (saturation_crit <= saturation)
+            N_new_drops = size_distribution
+            size_distribution = 0
+        end where
 
         !!! Calculate new 2nm particle formation (nucleation) here !!!
-        call Nucleation(cond_vapour(1), size_distribution(1))
+        !call Nucleation(cond_vapour(1), size_distribution(1))
 
         !!! Calculate coagulation losses here !!!
-        call Coagulation(dt_aero, size_distribution, diameter, &
-        temperature,pressure,particle_mass)
+        !call Coagulation(dt_aero, size_distribution, diameter, &
+        !temperature,pressure,particle_mass)
 
         !!! Calculate condensation particle growth here !!!
-        call Condensation(dt_aero, temperature, pressure, molecular_mass, &
-        molecular_volume, molar_mass, molecular_dia, particle_mass, particle_volume, &
-        size_distribution, cond_sink, diameter, cond_vapour)
+        !call Condensation(dt_aero, temperature, pressure, molecular_mass, &
+        !molecular_volume, molar_mass, molecular_dia, particle_mass, particle_volume, &
+        !size_distribution, cond_sink, diameter, cond_vapour)
 
         ! Compute statistics.
 
@@ -74,52 +89,62 @@ CONTAINS
         PN = SUM(size_distribution)*1D-6                 ! Total particle number concentration (cm^-3)
         PV = SUM(size_distribution*particle_volume)*1D12    ! Total particle mass concentration (ug/m^3)
 
+        dry_diam = diameter
+
     end subroutine
 
-    SUBROUTINE Aerosol_init(diameter, particle_mass, particle_volume, particle_conc, &
-        particle_density, nucleation_coef, molecular_mass, molar_mass, &
-        molecular_volume, molecular_dia, mass_accomm)
+    SUBROUTINE Aerosol_init(particle_conc)
 
         !! ====================== Definition of variables =====================================================================
 
-        REAL(DP), DIMENSION(nr_bins), INTENT(OUT) :: diameter       , &    ! diamter of each size bin
-            particle_mass  , &    ! mass of one particle
-            particle_volume  , &  ! volume of one particle
-            particle_conc         ! number concentration
+        REAL(DP), DIMENSION(n_aer_bins), INTENT(OUT) :: particle_conc         ! number concentration
 
-        REAL(DP), DIMENSION(nr_cond), INTENT(OUT) :: molecular_mass ,& ! molecular mass of the condensing vapours [kg/#]
-            molecular_volume ,&     ! [m3]
-            molecular_dia, &        ! [m]
-            molar_mass              ! molar mass of the condensing vapours [kg/mol]
-
-        REAL(DP), INTENT(OUT) :: nucleation_coef, mass_accomm
 
         REAL(DP), DIMENSION(nr_cond) :: density             ! Bulk density of condensing vapours [kg/m^3]
-        real(dp), intent(inout) :: particle_density
+        real(dp) :: max_diameter
+        real(dp) :: N(3), Dpg(3), log_sig(3)
 
-        INTEGER :: i
-        mass_accomm = 1D0   ! Mass accommodation coefficient
+        INTEGER :: i, k
 
-        nucleation_coef = 1D-20
-
-        ! Particle diameters between 2D-9 and 2.5D-6 m:
+        ! Particle diameters between 2D-9 and max_diameter m:
+        max_diameter = 8D-6
         diameter(1)=2D-9
-        DO i=2,nr_bins
-            diameter(i)=diameter(i-1)*(2.5D-6/diameter(1))**(1D0/(nr_bins-1))
+        DO i=2,n_aer_bins
+            diameter(i)=diameter(i-1)*(max_diameter/diameter(1))**(1D0/(n_aer_bins-1))
         END DO
 
-        particle_conc = 1D0 ! Assume an initial particle number concentration of 1 m^-3
-        where((abs(diameter-2D-7)-MINVAL(abs(diameter-2D-7)))<1D-20)  particle_conc=2D8 ! add 200 cm^-3 200 nm sized accumulation mode particles
+        !particle_conc = 1D0 ! Assume an initial particle number concentration of 1 m^-3
+        !where((abs(diameter-2D-7)-MINVAL(abs(diameter-2D-7)))<1D-20)  particle_conc=2D8 ! add 200 cm^-3 200 nm sized accumulation mode particles
 
-        particle_density = 1.4D3                                        ! Assumed fixed particle density [kg/m^3]
+        N(1) = 133; N(2) = 66.6; N(3) = 3.1; N = N * 1D6
+        Dpg(1) = 0.008; Dpg(2) = 0.266; Dpg(3) = 0.58; Dpg = Dpg * 1D-6
+        log_sig(1) = 0.657; log_sig(2) = 0.21; log_sig(3) = 0.396; log_sig = log(10**log_sig)
+        particle_conc = 0
+        do i = 1,size(N)
+            particle_conc(1) = particle_conc(1) + cum_distrib(i, diameter(1))
+            do k = 2, n_aer_bins
+                particle_conc(k) = particle_conc(k) + (cum_distrib(i, diameter(k)) - cum_distrib(i, diameter(k-1)))
+            end do
+        end do
+
+        size_multiplier = 5.8 / (diameter*1D6/2)**0.214
+        swelled_diameter = diameter * size_multiplier
+
+        a = 2*surf_tens/(273*R_v*rho_w)
+        b = 2*M_w*rho_s*(diameter/2)**3 / (rho_w*M_s)
+        saturation_crit = sqrt(4*a**3 / (27*b))
+
+        particle_density = 1.0D3                                        ! Assumed fixed particle density [kg/m^3]
         particle_volume = 1D0/6D0 * pi * diameter**3                      ! Single particle volume (m^3)
         particle_mass=  1D0/6D0 * pi * diameter**3 * particle_density     ! [kg]
-
-        density = (/1.84D3, 1.4D3/)                                     ! density of sulphuric acid and SOA
-        molar_mass = (/0.098D0, 0.3D0/)                                 ! H2SO4 and ELVOC
-        molecular_mass = molar_mass / Na                                ! molecular mass [kg]
-        molecular_volume = molecular_mass / density                     ! molecular volume [m^3]
-        molecular_dia = (6D0 * molecular_volume / pi )**(1D0/3D0)       ! molecular diameter [m]
+    contains
+        function cum_distrib(i, D_bin) result(mode_conc)
+            implicit none
+            real(dp) :: mode_conc
+            integer, intent(in) :: i
+            real(dp), intent(in) :: D_bin
+            mode_conc = N(i)*(0.5 + 0.5*erf((log(D_bin)-log(Dpg(i))) / (sqrt(2.0D0)*log_sig(i))))
+        end
 
     END SUBROUTINE Aerosol_init
 
@@ -130,7 +155,7 @@ CONTAINS
     real(kind = 8), parameter :: K = 1D-20 ! Nucleation coeff [m^3/molec/s]
 
     nucleation_rate = K * H2SO4_conc**2
-    smallest_conc = smallest_conc + nucleation_rate*dt_aero
+    smallest_conc = smallest_conc + nucleation_rate*dt_micro
 
     END SUBROUTINE Nucleation
 
@@ -138,26 +163,26 @@ CONTAINS
         molecular_volume, molar_mass, molecular_dia, particle_mass, particle_volume, &
         particle_conc, cond_sink, diameter, cond_vapour) ! Add more variables if you need it
 
-        REAL(DP), DIMENSION(nr_bins), INTENT(IN) :: diameter, particle_mass
+        REAL(DP), DIMENSION(n_aer_bins), INTENT(IN) :: diameter, particle_mass
         REAL(DP), DIMENSION(nr_cond), INTENT(IN) :: molecular_mass, molecular_dia, &
             molecular_volume, molar_mass
         REAL(DP), INTENT(IN) :: dt_aero, temperature, pressure
 
-        REAL(DP), DIMENSION(nr_bins), INTENT(INOUT) :: particle_conc
+        REAL(DP), DIMENSION(n_aer_bins), INTENT(INOUT) :: particle_conc
         REAL(DP), DIMENSION(nr_cond), INTENT(OUT) :: cond_sink
 
         REAL(DP), DIMENSION(2), INTENT(IN) :: cond_vapour  ! condensing vapour concentrations, which is H2SO4 and organics (ELVOC) [#/m^3]
 
-        REAL(DP), DIMENSION(nr_bins), INTENT(IN)   :: particle_volume
+        REAL(DP), DIMENSION(n_aer_bins), INTENT(IN)   :: particle_volume
 
-        REAL(DP), DIMENSION(nr_bins)   ::  slip_correction, diffusivity_p, speed_p, &
+        REAL(DP), DIMENSION(n_aer_bins)   ::  slip_correction, diffusivity_p, speed_p, &
             particle_conc_new, particle_volume_new
 
         REAL(DP), DIMENSION(nr_cond)   ::  diffusivity_gas, speed_gas
 
         REAL(DP) :: dyn_visc, l_gas, dens_air, x1, x2
 
-        real(dp),dimension(nr_bins) :: fuchs_sutugin, Kn, lambda, CR
+        real(dp),dimension(n_aer_bins) :: fuchs_sutugin, Kn, lambda, CR
 
         INTEGER :: j
 
@@ -197,10 +222,10 @@ CONTAINS
         end do
 
         particle_conc_new = 0.0
-        particle_conc_new(nr_bins) = particle_conc(nr_bins)
+        particle_conc_new(n_aer_bins) = particle_conc(n_aer_bins)
 
 
-        DO j = 1,nr_bins-1
+        DO j = 1,n_aer_bins-1
             x1 = (particle_volume(j+1) - particle_volume_new(j)) / (particle_volume(j+1) - particle_volume(j))
             x2 = 1 - x1
             particle_conc_new(j) = particle_conc_new(j) + x1*particle_conc(j)
@@ -214,17 +239,17 @@ CONTAINS
     SUBROUTINE Coagulation(dt_aero, particle_conc, diameter, &
         temperature,pressure,particle_mass) ! Add more variables if you need it
 
-        REAL(DP), DIMENSION(nr_bins), INTENT(IN) :: diameter
-        REAL(DP), DIMENSION(nr_bins), INTENT(INOUT) :: particle_conc
+        REAL(DP), DIMENSION(n_aer_bins), INTENT(IN) :: diameter
+        REAL(DP), DIMENSION(n_aer_bins), INTENT(INOUT) :: particle_conc
         REAL(DP), INTENT(IN) :: dt_aero
-        REAL(DP), DIMENSION(nr_bins), INTENT(IN) :: particle_mass       ! mass of one particle
+        REAL(DP), DIMENSION(n_aer_bins), INTENT(IN) :: particle_mass       ! mass of one particle
         REAL(DP), INTENT(IN) :: temperature, pressure
 
-        REAL(DP), DIMENSION(nr_bins,nr_bins) :: coagulation_coef        ! coagulation coefficients [m^3/s]
+        REAL(DP), DIMENSION(n_aer_bins,n_aer_bins) :: coagulation_coef        ! coagulation coefficients [m^3/s]
 
-        REAL(DP), DIMENSION(nr_bins) :: slip_correction, diffusivity, dist, speed_p, &
+        REAL(DP), DIMENSION(n_aer_bins) :: slip_correction, diffusivity, dist, speed_p, &
             Beta_Fuchs, free_path_p
-        real(dp), dimension(nr_bins) :: loss_self, loss_larger
+        real(dp), dimension(n_aer_bins) :: loss_self, loss_larger
 
         REAL(DP) ::       dyn_visc, &                                   ! dynamic viscosity, kg/(m*s)
             l_gas                                         ! Gas mean free path in air
@@ -248,7 +273,7 @@ CONTAINS
         dist = (1D0/(3D0*diameter*free_path_p))*((diameter+free_path_p)**3D0 &
             -(diameter**2D0+free_path_p**2D0)**(3D0/2D0))-diameter                    ! mean distance from the center of a sphere reached by particles leaving the sphere's surface (m)
 
-        DO i = 1,nr_bins
+        DO i = 1,n_aer_bins
             Beta_Fuchs = 1D0/((diameter+diameter(i))/(diameter+diameter(i)+&
                 2D0*(dist**2D0+dist(i)**2D0)**0.5D0)+8D0*(diffusivity+diffusivity(i))/&
                 (((speed_p**2D0+speed_p(i)**2D0)**0.5D0)*(diameter+diameter(i))))                    ! Fuchs correction factor from Seinfeld and Pandis, 2006, p. 600
@@ -266,12 +291,12 @@ CONTAINS
     ! and then calculate the loss (loss2) due to coagulation with larger particles
     ! Then add the two loss terms together loss = loss1 + loss2
 
-    do i = 1, nr_bins-1
+    do i = 1, n_aer_bins-1
         loss_self(i) = -0.5*coagulation_coef(i,i)*particle_conc(i)**2
-        loss_larger(i) = -particle_conc(i)*sum(coagulation_coef(i, i+1 : nr_bins) * particle_conc(i+1 : nr_bins))
+        loss_larger(i) = -particle_conc(i)*sum(coagulation_coef(i, i+1 : n_aer_bins) * particle_conc(i+1 : n_aer_bins))
     end do
-    loss_larger(nr_bins) = 0
-    loss_self(nr_bins) = -0.5*coagulation_coef(nr_bins,nr_bins)*particle_conc(nr_bins)**2
+    loss_larger(n_aer_bins) = 0
+    loss_self(n_aer_bins) = -0.5*coagulation_coef(n_aer_bins,n_aer_bins)*particle_conc(n_aer_bins)**2
 
     particle_conc = particle_conc + (loss_self + loss_larger) * dt_aero
 
@@ -281,7 +306,7 @@ CONTAINS
     SUBROUTINE dry_dep_velocity(diameter,particle_density,temperature,pressure,DSWF, &
         Richards_nr10m,wind_speed10m) ! Add more variables if you need it
 
-        REAL(DP), DIMENSION(nr_bins), INTENT(IN) :: diameter
+        REAL(DP), DIMENSION(n_aer_bins), INTENT(IN) :: diameter
 
         REAL(DP), INTENT(IN) :: temperature, pressure, Richards_nr10m, DSWF, &
             wind_speed10m, particle_density

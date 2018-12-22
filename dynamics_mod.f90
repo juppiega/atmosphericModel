@@ -635,10 +635,10 @@ CONTAINS
             !dqdz_ = 0
             flux_qw_k(2:nz-1) = -Kh_(2:nz-1) * dqdz_(2:nz-1)
             flux_qw_k(1) = flux_qw_(1)
-            if (time < 4.5*86400) then
+            if (time < 3.5*86400) then
                 call compute_fluxes(flux_qw_, Kh_, dqdz_, q_u_, q_)
             else
-                call compute_fluxes(flux_qw_, Kh_, dqdz_, q_, q_)
+                call compute_fluxes(flux_qw_, 2*Kh_, dqdz_, q_, q_)
             end if
             call compute_fluxes(flux_ThetaW, Kh_, dThetaDz_, theta_u_, theta_)
         end if

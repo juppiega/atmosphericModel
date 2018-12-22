@@ -7,6 +7,7 @@ module prognostics_mod
     use radiation_mod
     use chemistry_mod
     use aerosol_mod
+    use drops_mod
 
     implicit none
 
@@ -299,7 +300,8 @@ end type
         type(HNO3_P_type) :: HNO3_P
         type(ELVOC_type) :: ELVOC
         real(kind = 8), dimension(2, 1:nz) :: cond_sink
-        real(kind = 8), dimension(nr_bins, 1:nz) :: size_distribution
+        real(kind = 8), dimension(n_aer_bins, 1:nz) :: aerosol_distribution
+        real(kind = 8), dimension(n_drop_bins, 1:nz) :: drops_distribution
         real(kind = 8), dimension(nz) :: PN, PM, PV
     contains
         procedure :: leapfrog_middle                            ! Leapfrog to middle (NOT FULLY IMPLEMENTED)
@@ -725,9 +727,8 @@ contains
         this%PM = 0
         this%PV = 0
         do i = 1, nz
-            CALL Aerosol_init(diameter, particle_mass, particle_volume, this%size_distribution(:,i), &
-            particle_density, nucleation_coef, molecular_mass, molar_mass, &
-            molecular_volume, molecular_dia, mass_accomm)
+            CALL Aerosol_init(this%aerosol_distribution(:,i))
+            CALL drops_init(this%drops_distribution(:,i))
         end do
 
     end subroutine
