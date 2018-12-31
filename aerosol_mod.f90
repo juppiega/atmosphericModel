@@ -4,7 +4,7 @@ module Aerosol_mod
     use time_mod
     IMPLICIT NONE
     private
-    public compute_aerosol, Aerosol_init, swelled_diameter
+    public compute_aerosol, Aerosol_init, swelled_diameter, aerosol_fall_velocity
     !public test_aerosol
 
     !! ====================== Definition of variables =====================================================================
@@ -22,7 +22,8 @@ module Aerosol_mod
         v_dep                                ,&      ! Dry deposition velocity of particles
         size_multiplier                                   ,&
         saturation_crit,&
-        swelled_diameter
+        swelled_diameter,&
+        aerosol_fall_velocity
 
     REAL(DP), DIMENSION(nr_cond) :: molecular_mass   ,&   ! molecular mass of the condensing vapours [kg/#]
         molecular_volume                            ,&   ! Molecule volume of condensable vapours [m^3]
@@ -113,22 +114,35 @@ CONTAINS
             diameter(i)=diameter(i-1)*(max_diameter/diameter(1))**(1D0/(n_aer_bins-1))
         END DO
 
+        size_multiplier = 5.8 / (diameter*1D6/2)**0.214
+        swelled_diameter = diameter * size_multiplier
+
         !particle_conc = 1D0 ! Assume an initial particle number concentration of 1 m^-3
         !where((abs(diameter-2D-7)-MINVAL(abs(diameter-2D-7)))<1D-20)  particle_conc=2D8 ! add 200 cm^-3 200 nm sized accumulation mode particles
 
-        N(1) = 133; N(2) = 66.6; N(3) = 3.1; N = N * 1D6
-        Dpg(1) = 0.008; Dpg(2) = 0.266; Dpg(3) = 0.58; Dpg = Dpg * 1D-6
-        log_sig(1) = 0.657; log_sig(2) = 0.21; log_sig(3) = 0.396; log_sig = log(10**log_sig)
+        !N(1) = 133; N(2) = 66.6; N(3) = 3.1; N = N * 1D6
+        !Dpg(1) = 0.008; Dpg(2) = 0.266; Dpg(3) = 0.58; Dpg = Dpg * 1D-6
+        !log_sig(1) = 0.657; log_sig(2) = 0.21; log_sig(3) = 0.396; log_sig = log(10**log_sig)
+        !N(1) = 6650; N(2) = 147; N(3) = 1990; N = N * 1D6
+        !Dpg(1) = 0.015; Dpg(2) = 0.054; Dpg(3) = 0.084; Dpg = Dpg * 1D-6
+        !log_sig(1) = 0.225; log_sig(2) = 0.557; log_sig(3) = 0.266; log_sig = log(10**log_sig)
+        N(1) = 2*252; N(2) = 2*138; N(3) = 2*3.1; N = N * 1D6
+        Dpg(1) = 0.0397; Dpg(2) = 0.1759; Dpg(3) = 0.58; Dpg = Dpg * 1D-6
+        log_sig(1) = 0.199; log_sig(2) = 0.130; log_sig(3) = 0.396; log_sig = log(10**log_sig)
+
         particle_conc = 0
         do i = 1,size(N)
             particle_conc(1) = particle_conc(1) + cum_distrib(i, diameter(1))
             do k = 2, n_aer_bins
-                particle_conc(k) = particle_conc(k) + (cum_distrib(i, diameter(k)) - cum_distrib(i, diameter(k-1)))
+                if (swelled_diameter(k) < 1E30) then
+                    particle_conc(k) = particle_conc(k) + (cum_distrib(i, diameter(k)) - cum_distrib(i, diameter(k-1)))
+                else
+                    particle_conc(k) = 0
+                end if
             end do
         end do
 
-        size_multiplier = 5.8 / (diameter*1D6/2)**0.214
-        swelled_diameter = diameter * size_multiplier
+
 
         a = 2*surf_tens/(273*R_v*rho_w)
         b = 2*M_w*rho_s*(diameter/2)**3 / (rho_w*M_s)
@@ -137,6 +151,7 @@ CONTAINS
         particle_density = 1.0D3                                        ! Assumed fixed particle density [kg/m^3]
         particle_volume = 1D0/6D0 * pi * diameter**3                      ! Single particle volume (m^3)
         particle_mass=  1D0/6D0 * pi * diameter**3 * particle_density     ! [kg]
+        aerosol_fall_velocity = 0
     contains
         function cum_distrib(i, D_bin) result(mode_conc)
             implicit none

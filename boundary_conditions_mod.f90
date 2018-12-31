@@ -104,7 +104,7 @@ SUBROUTINE surface_values(temperature, time)
   !
   !temperature = temp1 + x*(temp2 - temp1) + 273.15_dp ! now in Kelvin
 
-  temperature = sin(2*PI*time/86400 + PI)*6 + 19 + 273.15
+  temperature = sin(2*PI*time/86400 + PI)*1 + 19 + 273.15
 
 
 END SUBROUTINE surface_values

@@ -9,7 +9,7 @@
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 MODULE dynamics_mod
-
+    use omp_lib
     !-----------------------------------------------------------------------------------------
     ! Load modules
     !-----------------------------------------------------------------------------------------
@@ -18,6 +18,7 @@ MODULE dynamics_mod
     USE grid_mod
     use derivatives_mod
     use prognostics_mod
+    use aerosol_mod
 
     !-----------------------------------------------------------------------------------------
     ! Variable declaration
@@ -312,6 +313,7 @@ CONTAINS
         factor = (q_(2) - q_(1)) / (zt * log(z(2)/z0)) * (f_theta_(1) / 0.145)&
             * mixingLength_(1) / Pr_0
 
+
         if (theta_(2) < theta_(1)) then
             flux_qw_(1) = factor * (b + 0.2*w_star_surf_**3)**(1.0/3.0)
         else
@@ -462,6 +464,24 @@ CONTAINS
 
     end function
 
+    subroutine advect_size_distribution(distrib, upd_init, hd_ind, flux_surf, V_term, scaled_entr)
+        implicit none
+        real(dp), intent(inout) :: distrib(:)
+        real(dp), intent(in) :: flux_surf, V_term, upd_init, scaled_entr(:)
+        integer, intent(in) :: hd_ind
+        real(dp) :: dz_dis(nz-1), distrib_u(nz), flux_dis(nz-1), dt_distrib(nz-2)
+
+        dz_dis = zDeriv(distrib)
+        distrib_u(1:nz) = upd_init!compute_updraft(distrib)
+        distrib_u(hd_ind+1:nz) = 0
+        flux_dis(1) = flux_surf
+        call compute_fluxes(flux_dis, Km_, dz_dis, distrib_u, distrib)
+        dt_distrib = -zDerivMidLevel(flux_dis) - (w_subsidence(updInd)-V_term) * 0.5*(dz_dis(1:nz-2) + dz_dis(2:nz-1)) &
+                     -scaled_entr(updInd) * (distrib(updInd) - upd_init)
+        distrib(updInd) = distrib(updInd) + dt * dt_distrib
+
+    end subroutine
+
     function compute_updraft(var) result(var_updraft)
         implicit none
         real(kind = 8), intent(in) :: var(nz)
@@ -563,11 +583,15 @@ CONTAINS
     ! PURPOSE: Compute dynamics (tendencies from BL turbulence).
     ! INPUT:
     !   (prognostics_type) : progn [contains the full atmospheric state]
-    subroutine compute_dynamics(progn, stepType)
+    subroutine compute_dynamics(progn, stepType, hd_ind)
         implicit none
         type(prognostics_type), intent(inout) :: progn
         integer, intent(in) :: stepType
+        integer, intent(out) :: hd_ind
+        real(dp) :: scaled_entr(nz)
         CHARACTER(255) :: outfmt
+        integer :: i
+        real(dp) :: aerosol_profile(nz), drop_profile(nz), c1, sqrt_tau, flux_surf, zt
 
         w_kin_ = 0
         mass_flux_ = 0
@@ -635,7 +659,7 @@ CONTAINS
             !dqdz_ = 0
             flux_qw_k(2:nz-1) = -Kh_(2:nz-1) * dqdz_(2:nz-1)
             flux_qw_k(1) = flux_qw_(1)
-            if (time < 3.5*86400) then
+            if (time < 1E30) then
                 call compute_fluxes(flux_qw_, Kh_, dqdz_, q_u_, q_)
             else
                 call compute_fluxes(flux_qw_, 2*Kh_, dqdz_, q_, q_)
@@ -660,6 +684,43 @@ CONTAINS
 
         progn%E_tot(1) = E_tot_(1)
         progn%hd = hd_
+
+        zt = 0.5*(z0 + z(2))
+        c1 = 1 / (zt * log(z(2)/z0)) * (f_theta_(1) / 0.145) * mixingLength_(1) / Pr_0
+        sqrt_tau = sqrt(sqrt(flux_uw_(1)**2 + flux_vw_(1)**2))
+
+        entr_ = C_r / max(100.0D0, hd_)
+        scaled_entr(1) = 0
+        scaled_entr(nz) = 0
+        scaled_entr(2:nz-1) = entr_ * 0.5 * (Kh_(1:nz-2) / mixingLength_(1:nz-2) + Kh_(2:nz-1) / mixingLength_(2:nz-1))
+        do i = 1, nz
+            if (z(i) > hd_) exit
+            hd_ind = i
+        end do
+        !$OMP PARALLEL PRIVATE(aerosol_profile, drop_profile, flux_surf)
+        IF ( time >= time_start_aerosol ) THEN
+            !$OMP DO
+            do i = 1, n_aer_bins
+                aerosol_profile = progn%aerosol_distribution(i,:)
+                flux_surf = (aerosol_profile(2) - aerosol_profile(1)) * c1 * sqrt_tau
+                call advect_size_distribution(aerosol_profile, aerosol_profile(1), hd_ind, &
+                                              flux_surf, aerosol_fall_velocity(i), scaled_entr)
+                progn%aerosol_distribution(i,:) = max(aerosol_profile, 0D0)
+            end do
+            !$OMP END DO NOWAIT
+
+            !$OMP DO
+            do i = 1, n_drop_bins
+                drop_profile = progn%drops_distribution(i,:)
+                flux_surf = (drop_profile(2) - drop_profile(1)) * c1 * sqrt_tau
+                call advect_size_distribution(drop_profile, 0D0, hd_ind, flux_surf, drop_fall_velocity(i), scaled_entr)
+                progn%drops_distribution(i,:) = max(drop_profile, 0D0)
+            end do
+            !$OMP END DO
+        end if
+        !$OMP END PARALLEL
+
+
 
         !print *, progn%dudt(1), progn%dvdt(1), progn%dThetaDt(1), progn%DEDt(2)
         !

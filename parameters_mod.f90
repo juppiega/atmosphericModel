@@ -40,13 +40,13 @@ integer, parameter :: leapfrog_atMidpoint = 1, leapfrog_atPreviousFullTime = 2, 
 integer, parameter :: euler = 1, leapfrog = 2, RK4 = 3
 
 logical, parameter :: output_chemistry = .true.
-logical, parameter :: model_chemistry = .true.
-logical, parameter :: box = .true.
+logical, parameter :: model_chemistry = .false.
+logical, parameter :: box = .false.
 logical, parameter :: model_aerosols = .true.
 CHARACTER(255), PARAMETER :: outdir = 'output'
 integer :: scheme = 2 ! 1 = K_theory, 2 = TEMF
 
-INTEGER, PARAMETER ::  n_aer_bins = 100           ! Number of particle size bins
+INTEGER, PARAMETER ::  n_aer_bins = 30           ! Number of particle size bins
 INTEGER, PARAMETER ::  n_drop_bins = 100           ! Number of particle size bins
 INTEGER, PARAMETER ::  nr_cond = 2             ! Number of condensable vapours
 

@@ -20,7 +20,7 @@
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 PROGRAM main
-
+    use omp_lib
     !-----------------------------------------------------------------------------------------
     ! Load modules
     !-----------------------------------------------------------------------------------------
@@ -33,14 +33,15 @@ PROGRAM main
     use parameterizations_mod
     use prognostics_mod
     use aerosol_mod
+    use drops_mod
 
     !-----------------------------------------------------------------------------------------
     ! Variable declaration
     !-----------------------------------------------------------------------------------------
     IMPLICIT NONE
     type(prognostics_type) :: progn
-    integer :: solution_method = euler
-    real(kind = 8) :: previous_output_time = -1E30
+    integer :: solution_method = euler, hd_ind
+    real(kind = 8) :: previous_output_time = -1E30, t_start, t_end, LCL, cloud_top
     !-----------------------------------------------------------------------------------------
     ! Initialization
     !-----------------------------------------------------------------------------------------
@@ -62,11 +63,19 @@ PROGRAM main
     end if
 
 
+    !$OMP PARALLEL
+    !$OMP SINGLE
+    print *, 'Numthreads: ', omp_get_num_threads()
+    !$OMP END SINGLE
+    !$OMP END PARALLEL
+
 
     !-----------------------------------------------------------------------------------------
     ! Start main loop
     !-----------------------------------------------------------------------------------------
+
     DO WHILE (time <= time_end)
+        if (time <= time_start_aerosol) t_start = omp_get_wtime()
 
         if (.not. box) then
             ! Set prognostics boundary conditions
@@ -74,11 +83,11 @@ PROGRAM main
 
             !print *, 'Entering dynamics'
             ! Compute values at next time step: u(n+1) = u(n) + dt * f(n), where f = du/dt
-            call compute_dynamics(progn, euler_step) ! Compute dynamics tendencies (turbulent fluxes)
+            call compute_dynamics(progn, euler_step, hd_ind) ! Compute dynamics tendencies (turbulent fluxes)
             !print *, 'Passed dynamics'
-            call progn%compute_diagnostics(surf_pressure)
+            call progn%compute_diagnostics(surf_pressure, LCL, cloud_top)
 
-            call compute_parameterizations(progn)    ! Compute parameterizations (chemistry emissions, depositions)
+            call compute_parameterizations(progn, hd_ind, LCL, cloud_top)    ! Compute parameterizations (chemistry emissions, depositions)
             call progn%euler_next()                  ! Advance to the next timestep using forward Euler
 
         else
@@ -110,6 +119,8 @@ PROGRAM main
         counter = counter + 1
 
     END DO
+    t_end = omp_get_wtime()
+    print *, 'Performance (simulation days / cpu hour): ', ((time-time_start_aerosol)/86400) / ((t_end-t_start)/3600)
 
     !-----------------------------------------------------------------------------------------
     ! Finalization
@@ -176,6 +187,12 @@ CONTAINS
         OPEN(44, FILE = TRIM(ADJUSTL(outdir))//'/RH.dat'    , STATUS = 'REPLACE', ACTION = 'WRITE')
         OPEN(45, FILE = TRIM(ADJUSTL(outdir))//'/flux_q_local.dat'    , STATUS = 'REPLACE', ACTION = 'WRITE')
         OPEN(46, FILE = TRIM(ADJUSTL(outdir))//'/mass_flux.dat'    , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(47, FILE = TRIM(ADJUSTL(outdir))//'/N_drops.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(48, FILE = TRIM(ADJUSTL(outdir))//'/r_eff.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(49, FILE = TRIM(ADJUSTL(outdir))//'/LWC.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(50, FILE = TRIM(ADJUSTL(outdir))//'/rain_rate.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(51, FILE = TRIM(ADJUSTL(outdir))//'/drop_area.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
+        OPEN(52, FILE = TRIM(ADJUSTL(outdir))//'/condensation.dat' , STATUS = 'REPLACE', ACTION = 'WRITE')
     END SUBROUTINE open_files
 
 
@@ -215,6 +232,12 @@ CONTAINS
         WRITE(42, outfmt) progn%T
         WRITE(43, outfmt) progn%pressure
         WRITE(44, outfmt) progn%RH
+        WRITE(47, outfmt) progn%N_drops
+        WRITE(48, outfmt) progn%r_eff
+        WRITE(49, outfmt) progn%LWC
+        WRITE(50, outfmt) progn%rain_rate
+        WRITE(51, outfmt) progn%drop_area
+        WRITE(52, outfmt) progn%condensation
         if (output_chemistry) then
             !print *, progn%OH%concentration(2)
             call progn%O3%output
@@ -303,6 +326,12 @@ CONTAINS
         close(44)
         close(45)
         close(46)
+        close(47)
+        close(48)
+        close(49)
+        close(50)
+        close(51)
+        close(52)
         if (output_chemistry) then
             call progn%O3%close_file
             call progn%O1D%close_file
@@ -388,14 +417,14 @@ CONTAINS
         type(prognostics_type), intent(inout) :: progn
         real(dp) :: N_new_drops(n_aer_bins), dry_diam(n_aer_bins), a, saturation
 
-        call progn%compute_diagnostics(surf_pressure)
+        !call progn%compute_diagnostics(surf_pressure)
         saturation = progn%RH(1)-1
 
         IF ( time >= time_start_aerosol .and. MOD( NINT((time - time_start)*10.0), NINT(dt_micro*10.0)) == 0 ) THEN
             call compute_aerosol(progn%aerosol_distribution(:,1), progn%T(1), progn%RH(1)-1, N_new_drops, dry_diam, &
                                  progn%PN(1), progn%PM(1), progn%PV(1), a)
-            call compute_drops(progn%drops_distribution(:,1), progn%T(1), progn%pressure(1), saturation, &
-                                swelled_diameter, N_new_drops, dry_diam, a, progn%q(1))
+            !call compute_drops(progn%drops_distribution(:,1), progn%T(1), progn%pressure(1), saturation, &
+            !                    swelled_diameter, N_new_drops, dry_diam, a, progn%q(1))
             !progn%q = 0.001
         end if
 

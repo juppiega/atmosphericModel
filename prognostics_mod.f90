@@ -302,7 +302,7 @@ end type
         real(kind = 8), dimension(2, 1:nz) :: cond_sink
         real(kind = 8), dimension(n_aer_bins, 1:nz) :: aerosol_distribution
         real(kind = 8), dimension(n_drop_bins, 1:nz) :: drops_distribution
-        real(kind = 8), dimension(nz) :: PN, PM, PV
+        real(kind = 8), dimension(nz) :: PN, PM, PV, N_drops, r_eff, LWC, rain_rate, drop_area, condensation
     contains
         procedure :: leapfrog_middle                            ! Leapfrog to middle (NOT FULLY IMPLEMENTED)
         procedure :: leapfrog_next                              ! Leapfrog to next timestep (NOT FULLY IMPLEMENTED)
@@ -726,17 +726,20 @@ contains
         this%PN = 0
         this%PM = 0
         this%PV = 0
-        do i = 1, nz
-            CALL Aerosol_init(this%aerosol_distribution(:,i))
-            CALL drops_init(this%drops_distribution(:,i))
+        CALL Aerosol_init(this%aerosol_distribution(:,1))
+        CALL drops_init(this%drops_distribution(:,1))
+        do i = 2, nz
+            this%aerosol_distribution(:,i) = 0
+            this%drops_distribution(:,i) = 0
         end do
 
     end subroutine
 
-    subroutine compute_diagnostics(this, P0)
+    subroutine compute_diagnostics(this, P0, LCL, cloud_top)
         implicit none
         class(prognostics_type), intent(inout) :: this
         real(kind = 8), intent(in) :: P0 ! Surface pressure [Pa]
+        real(kind = 8), intent(out) :: LCL, cloud_top
         real(kind = 8) :: e_sat(nz)
         integer :: i
 
@@ -753,6 +756,16 @@ contains
         this%M = this%pressure / (R*this%T) * NA * 1D-6
         this%O2 = 0.21*this%M
         this%N2 = 0.78*this%M
+
+        do i = 1, nz
+            if (this%RH(i) > 1) exit
+            LCL = z(i)
+        end do
+
+        do i = nz, 1, -1
+            if (this%RH(i) > 1) exit
+            cloud_top = z(i)
+        end do
 
     end subroutine
 

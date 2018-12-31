@@ -1,6 +1,7 @@
 ! module parameterizations_mod
 ! PURPOSE: Compute parametrizations (at this stage, chemistry emissions and depositions only)
 module parameterizations_mod
+    use omp_lib
     use radiation_mod
     use chemistry_mod
     use aerosol_mod
@@ -8,10 +9,43 @@ module parameterizations_mod
     use time_mod
     implicit none
     ! TODO: Tallenna parametrisointitendenssit
+    real(dp) :: free_trop_aerosol_dist(n_aer_bins)
 contains
 
     subroutine parameterizations_init()
         implicit none
+        real(dp) :: N(3), Dpg(3), log_sig(3), max_diameter, diameter(n_aer_bins)
+        INTEGER :: i, k
+
+        ! Particle diameters between 2D-9 and max_diameter m:
+        max_diameter = 8D-6
+        diameter(1)=2D-9
+        DO i=2,n_aer_bins
+            diameter(i)=diameter(i-1)*(max_diameter/diameter(1))**(1D0/(n_aer_bins-1))
+        END DO
+
+        N(1) = 129; N(2) = 60; N(3) = 64; N = N * 1D6
+        Dpg(1) = 0.007; Dpg(2) = 0.25; Dpg(3) = 0.52; Dpg = Dpg * 1D-6
+        log_sig(1) = 0.645; log_sig(2) = 0.253; log_sig(3) = 0.425; log_sig = log(10**log_sig)
+
+        free_trop_aerosol_dist = 0
+        do i = 1,size(N)
+            free_trop_aerosol_dist(1) = free_trop_aerosol_dist(1) + cum_distrib(i, diameter(1))
+            do k = 2, n_aer_bins
+                free_trop_aerosol_dist(k) = free_trop_aerosol_dist(k) + &
+                                            (cum_distrib(i, diameter(k)) - cum_distrib(i, diameter(k-1)))
+            end do
+        end do
+
+    contains
+
+        function cum_distrib(i, D_bin) result(mode_conc)
+            implicit none
+            real(dp) :: mode_conc
+            integer, intent(in) :: i
+            real(dp), intent(in) :: D_bin
+            mode_conc = N(i)*(0.5 + 0.5*erf((log(D_bin)-log(Dpg(i))) / (sqrt(2.0D0)*log_sig(i))))
+        end
 
     end subroutine
 
@@ -19,11 +53,14 @@ contains
     ! PURPOSE: Main driver for parameterization computations, called in the main time loop.
     ! INPUT:
     !   (prognostics_type) : progn [contains the full atmospheric state]
-    subroutine compute_parameterizations(progn)
+    subroutine compute_parameterizations(progn, hd_ind, LCL, cloud_top)
         use time_mod
         implicit none
         type(prognostics_type), intent(inout) :: progn
+        integer, intent(in) :: hd_ind
+        real(dp), intent(in) :: LCL, cloud_top
         integer :: i
+        real(dp) :: N_new_drops(n_aer_bins), dry_diam(n_aer_bins), a_kelvin, saturation, LWC_before ! Huom rinnakaistuksessa!
 
         !print *, 'parameterizations called'
 
@@ -35,13 +72,40 @@ contains
 
         ! Compute aerosols.
         IF (model_aerosols.and.time>=time_start_aerosol.and.MOD(NINT((time-time_start)*10.0),NINT(dt_micro*10.0))==0)THEN
+            !$OMP PARALLEL DO PRIVATE(N_new_drops, dry_diam, a_kelvin, saturation, LWC_before)
             do i = 1, nz
+
                 ! Set condensation vapour concentrations.
                 !cond_vapour(1) = progn%H2SO4%concentration(i)*1D6
                 !cond_vapour(2) = progn%ELVOC%concentration(i)*1D6
 
                 !call compute_aerosol(progn%aerosol_distribution(:,i), 1.01D0, progn%PN(i), progn%PM(i), progn%PV(i))
+
+                !call progn%compute_diagnostics(surf_pressure, LCL, cloud_top)
+                saturation = progn%RH(i)-1
+                !if (saturation < 0) then
+                !    if (i <= hd_ind) then
+                !        progn%aerosol_distribution(:,i) = progn%aerosol_distribution(:,1)
+                !    else
+                !        progn%aerosol_distribution(:,i) = progn%aerosol_distribution(:,1)!free_trop_aerosol_dist
+                !    end if
+                !end if
+                if (z(i) < LCL .or. z(i) > cloud_top) progn%aerosol_distribution(:,i) = progn%aerosol_distribution(:,1)
+
+
+                !call compute_aerosol(progn%aerosol_distribution(:,i), progn%T(i), saturation, N_new_drops, dry_diam, &
+                !                 progn%PN(i), progn%PM(i), progn%PV(i), a_kelvin)
+
+                call compute_aerosol(progn%aerosol_distribution(:,i), progn%T(i), progn%RH(i)-1, N_new_drops, dry_diam, &
+                                 progn%PN(i), progn%PM(i), progn%PV(i), a_kelvin)
+
+                LWC_before = progn%LWC(i)
+                call compute_drops(progn%drops_distribution(:,i), progn%T(i), progn%pressure(i), saturation, &
+                                swelled_diameter, N_new_drops, dry_diam, a_kelvin, progn%q(i), progn%N_drops(i), &
+                                progn%LWC(i), progn%r_eff(i), progn%rain_rate(i), progn%drop_area(i))
+                progn%condensation(i) = (progn%LWC(i) - LWC_before) / dt_micro
             end do
+            !$OMP END PARALLEL DO
         end if
 
 

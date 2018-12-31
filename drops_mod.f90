@@ -3,7 +3,7 @@ module drops_mod
     use time_mod
     implicit none
     private
-    public drops_init, compute_drops
+    public drops_init, compute_drops, drop_fall_velocity
 
     REAL(DP), DIMENSION(n_drop_bins) :: diameter  ,&    ! Diameter of each size bin
         drop_area                      ,&       ! area concentration in each size bin
@@ -11,7 +11,8 @@ module drops_mod
         Re ,&
         coag_loss                            ,&    ! coagulation loss rate of particles in each size bin
         v_dep  ,&                                    ! Dry deposition velocity of particles
-        P, dm, midpoints, drop_volume_mid
+        P, dm, midpoints, drop_volume_mid, drop_fall_velocity
+    logical :: rain(n_drop_bins)
     real(dp), allocatable :: collision_kernel(:,:), Q(:,:)
 
     real(dp), parameter :: M_w = 18.01, M_s = 58.44, rho_w = 1D3, rho_s = 2160, surf_tens = 76D-3, R_v = 461, R_a = 287
@@ -29,7 +30,7 @@ subroutine drops_init(drop_conc)
     ! Particle diameters between 2D-9 and max_diameter m:
     max_diameter = 3250D-6
     diameter(1)=4D-6
-    DO i=2,n_aer_bins
+    DO i=2,n_drop_bins
         diameter(i)=diameter(i-1)*(max_diameter/diameter(1))**(1D0/(n_drop_bins-1))
     END DO
 
@@ -70,11 +71,18 @@ subroutine drops_init(drop_conc)
     dm(n_drop_bins) = 0 ! Never used
     drop_volume_mid = pi/6 * midpoints**3
 
+    rain = diameter > 100E-6
+
+    do j = 1, n_drop_bins
+        drop_fall_velocity(j) = terminal_velocity(diameter(j))
+    end do
+
 end subroutine drops_init
 
-subroutine compute_drops(drop_conc, T, p, saturation, swelled_diameter, N_new_drops, dry_diam, a, q)
+subroutine compute_drops(drop_conc, T, p, saturation, swelled_diameter, N_new_drops, dry_diam, &
+                         a, q, N_tot, LWC, r_eff, rain_rate, total_area)
     implicit none
-    real(dp), intent(inout) :: drop_conc(:), saturation, q
+    real(dp), intent(inout) :: drop_conc(:), saturation, q, N_tot, LWC, r_eff, rain_rate, total_area
     real(dp), intent(in) :: T, p, swelled_diameter(:), N_new_drops(:), dry_diam(:), a
     real(dp) :: b(n_drop_bins), saturation_change, dt_cond, dt_coal, dt_breakup, time_cond, q_change, time_tot
 
@@ -85,7 +93,7 @@ subroutine compute_drops(drop_conc, T, p, saturation, swelled_diameter, N_new_dr
     dt_cond = 0.01
     dt_coal = min(10D0, dt_micro)
     dt_breakup = min(10D0, dt_micro)
-    print *, saturation, sum(drop_conc), drop_conc
+    !print *, saturation, sum(drop_conc), drop_conc
     !print *, saturation
     !print *, q
 
@@ -118,6 +126,12 @@ subroutine compute_drops(drop_conc, T, p, saturation, swelled_diameter, N_new_dr
     !print *, sum(drop_conc*drop_volume)
 
     end do
+
+    N_tot = sum(drop_conc)
+    LWC = sum(drop_volume*drop_conc)*rho_w
+    r_eff = sum((diameter/2)**3 * drop_conc) / sum((diameter/2)**2 * drop_conc)
+    rain_rate = sum(pack(drop_volume*drop_conc*rho_w*drop_fall_velocity, rain))
+    total_area = sum(pi*(diameter/2)**2 * drop_conc)
 
 end subroutine compute_drops
 
