@@ -72,7 +72,7 @@ contains
 
         ! Compute aerosols.
         IF (model_aerosols.and.time>=time_start_aerosol.and.MOD(NINT((time-time_start)*10.0),NINT(dt_micro*10.0))==0)THEN
-            !$OMP PARALLEL DO PRIVATE(N_new_drops, dry_diam, a_kelvin, saturation, LWC_before)
+            !$OMP PARALLEL DO SCHEDULE(dynamic) PRIVATE(N_new_drops, dry_diam, a_kelvin, saturation, LWC_before)
             do i = 1, nz
 
                 ! Set condensation vapour concentrations.
@@ -106,6 +106,7 @@ contains
                 progn%condensation(i) = (progn%LWC(i) - LWC_before) / dt_micro
             end do
             !$OMP END PARALLEL DO
+            print *, 'passed'
         end if
 
 

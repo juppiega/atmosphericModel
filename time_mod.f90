@@ -62,7 +62,7 @@ SUBROUTINE Time_Init()
   ! Simulation time period
   !
   time_start = 0
-  time_end = 5*24*3600 + 16*60!4.5*86400 + 10 + time_start
+  time_end = 1.5*3600+16*60!1*24*3600 + 16*60!4.5*86400 + 10 + time_start
 
   !
   ! Time steps

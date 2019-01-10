@@ -126,7 +126,7 @@ CONTAINS
         !N(1) = 6650; N(2) = 147; N(3) = 1990; N = N * 1D6
         !Dpg(1) = 0.015; Dpg(2) = 0.054; Dpg(3) = 0.084; Dpg = Dpg * 1D-6
         !log_sig(1) = 0.225; log_sig(2) = 0.557; log_sig(3) = 0.266; log_sig = log(10**log_sig)
-        N(1) = 2*252; N(2) = 2*138; N(3) = 2*3.1; N = N * 1D6
+        N(1) = 1*252; N(2) = 1*138; N(3) = 1*3.1; N = N * 1D6
         Dpg(1) = 0.0397; Dpg(2) = 0.1759; Dpg(3) = 0.58; Dpg = Dpg * 1D-6
         log_sig(1) = 0.199; log_sig(2) = 0.130; log_sig(3) = 0.396; log_sig = log(10**log_sig)
 

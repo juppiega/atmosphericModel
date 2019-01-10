@@ -205,7 +205,7 @@ CONTAINS
         !
         type(prognostics_type), intent(inout) :: progn
         REAL(DP), intent(in) :: TIME  ! current time
-        CHARACTER(255) :: outfmt, outfmt_nrbins
+        CHARACTER(255) :: outfmt, outfmt_nrbins, outfmt_drops
         !
         ! Description
         !
@@ -216,6 +216,7 @@ CONTAINS
         !
         WRITE(outfmt, '(a, i3, a)') '(', nz, 'es25.16)'
         WRITE(outfmt_nrbins, '(a, i3, a)') '(', n_aer_bins, 'es25.16)'
+        WRITE(outfmt_drops, '(a, i3, a)') '(', n_drop_bins, 'es25.16)'
 
         !
         ! Only save h one time at the beginning
@@ -270,7 +271,7 @@ CONTAINS
         write(19, outfmt) progn%PN
         write(20, outfmt) progn%PM
         write(21, outfmt) progn%PV
-        write(22, outfmt_nrbins) progn%drops_distribution(:,1)
+        write(22, outfmt_drops) progn%drops_distribution(:,1)
 
 
         call parameterizations_output(progn) ! TODO: empty as of yet
@@ -415,18 +416,27 @@ CONTAINS
         use radiation_mod
         implicit none
         type(prognostics_type), intent(inout) :: progn
-        real(dp) :: N_new_drops(n_aer_bins), dry_diam(n_aer_bins), a, saturation
+        real(dp) :: N_new_drops(n_aer_bins), dry_diam(n_aer_bins), a, saturation, LWC_before, LCL, cloud_top
 
-        !call progn%compute_diagnostics(surf_pressure)
+        call progn%compute_diagnostics(surf_pressure, LCL, cloud_top)
         saturation = progn%RH(1)-1
 
         IF ( time >= time_start_aerosol .and. MOD( NINT((time - time_start)*10.0), NINT(dt_micro*10.0)) == 0 ) THEN
             call compute_aerosol(progn%aerosol_distribution(:,1), progn%T(1), progn%RH(1)-1, N_new_drops, dry_diam, &
                                  progn%PN(1), progn%PM(1), progn%PV(1), a)
+
+            LWC_before = progn%LWC(1)
+            call compute_drops(progn%drops_distribution(:,1), progn%T(1), progn%pressure(1), saturation, &
+                                swelled_diameter, N_new_drops, dry_diam, a, progn%q(1), progn%N_drops(1), &
+                                progn%LWC(1), progn%r_eff(1), progn%rain_rate(1), progn%drop_area(1))
+            progn%condensation(1) = (progn%LWC(1) - LWC_before) / dt_micro
             !call compute_drops(progn%drops_distribution(:,1), progn%T(1), progn%pressure(1), saturation, &
             !                    swelled_diameter, N_new_drops, dry_diam, a, progn%q(1))
             !progn%q = 0.001
+            print *, time, saturation, progn%r_eff(1), progn%N_drops(1), progn%LWC(1)
         end if
+
+
 
 
     end subroutine
