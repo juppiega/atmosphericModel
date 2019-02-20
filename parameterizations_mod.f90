@@ -106,7 +106,7 @@ contains
                 progn%condensation(i) = (progn%LWC(i) - LWC_before) / dt_micro
             end do
             !$OMP END PARALLEL DO
-            print *, 'passed'
+            !print *, 'passed'
         end if
 
 

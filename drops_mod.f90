@@ -85,6 +85,7 @@ subroutine drops_init(drop_conc)
 
 end subroutine drops_init
 
+! Main function for the warm microphysics. Modifies the spectrum (drop_conc) and moisture.
 subroutine compute_drops(drop_conc, T, p, saturation, swelled_diameter, N_new_drops, dry_diam, &
                          a, q, N_tot, LWC, r_eff, rain_rate, total_area)
     implicit none
@@ -92,33 +93,24 @@ subroutine compute_drops(drop_conc, T, p, saturation, swelled_diameter, N_new_dr
     real(dp), intent(in) :: T, p, swelled_diameter(:), N_new_drops(:), dry_diam(:), a
     real(dp) :: b(n_drop_bins), saturation_change, dt_cond, dt_coal, dt_breakup, time_cond, &
                 q_change, time_tot, max_CFL, CFL_scale, LWC_before, LWC_after, evaporation, es
-    real(dp), dimension(n_drop_bins) :: q1, q2, q3, q4, conc_new
-    logical :: even_step
-
-    even_step = .true.
+    real(dp), dimension(n_drop_bins) :: q1, q2, q3, q4, conc_new ! RK4 variables
 
     call compute_nucleation(drop_conc, swelled_diameter, N_new_drops, dry_diam, b)
 
-    !print *, drop_conc
-    dt_cond = 0.001
     max_CFL = 0.3
-    !dt_coal = min(10D0, dt_micro)
-    dt_breakup = min(10.0, dt_micro)
-    !print *, saturation, sum(drop_conc), drop_conc
-    !print *, saturation
-    !print *, q
+    dt_breakup = min(10.0, dt_micro) ! Breakup timestep is also the coalescence timestep.
 
     time_tot = 0
-    do while (time_tot <= dt_micro - 1E-6)
-
+    do while (time_tot < dt_micro - 1E-6)
 
         time_cond = 0
         do while(time_cond < dt_breakup - 1E-6)
-            !call compute_condensation(drop_conc, a, b, T, p, saturation, dt_cond, q1, CFL_scale) ! q1 not set after call
-            !dt_cond = CFL_scale * max_CFL
-            !if (dt_cond > dt_breakup - time_cond) dt_cond = dt_breakup - time_cond
-            !print *, dt_cond
+            ! Get the multiplier to obtain timestep
+            call compute_condensation(drop_conc, a, b, T, p, saturation, dt_cond, q1, CFL_scale) ! q1 not set after call
+            dt_cond = CFL_scale * max_CFL
+            if (dt_cond > dt_breakup - time_cond) dt_cond = dt_breakup - time_cond ! Don't proceed past dt_breakup
 
+            ! RK4
             call compute_condensation(drop_conc, a, b, T, p, saturation, dt_cond, q1)
             call compute_condensation(drop_conc + q1/2, a, b, T, p, saturation, dt_cond, q2)
             call compute_condensation(drop_conc + q2/2, a, b, T, p, saturation, dt_cond, q3)
@@ -127,6 +119,7 @@ subroutine compute_drops(drop_conc, T, p, saturation, swelled_diameter, N_new_dr
             conc_new = drop_conc + (q1 + 2*q2 + 2*q3 + q4) / 6.0
             LWC_before = sum(drop_volume*drop_conc)*rho_w
 
+            ! Drops arriving in the first bin from the larger radii are evaporated
             if (conc_new(1) > drop_conc(1)) then
                 evaporation = (conc_new(1)-drop_conc(1))*rho_w*drop_volume(1)
             else
@@ -150,23 +143,9 @@ subroutine compute_drops(drop_conc, T, p, saturation, swelled_diameter, N_new_dr
         call compute_breakup(drop_conc, dt_breakup)
         time_tot = time_tot + dt_breakup
 
-
-
-    !print *, drop_conc
-    !print *, sum(drop_conc*drop_volume)
-
-    !print *, q_change
-
-
-    !print *, drop_conc
-    !print *, sum(drop_conc*drop_volume)
-
-
-    !print *, drop_conc
-    !print *, sum(drop_conc*drop_volume)
-
     end do
 
+    ! Diagnostics
     N_tot = sum(drop_conc)
     LWC = sum(drop_volume*drop_conc)*rho_w
     r_eff = sum((diameter/2)**3 * drop_conc) / sum((diameter/2)**2 * drop_conc)
@@ -204,56 +183,38 @@ subroutine compute_condensation(drop_conc, a, b, T, p, saturation, dt_drops, con
     real(dp), intent(in) :: a, b(:), T, p, saturation, dt_drops
     real(dp), intent(out) :: conc_change(n_drop_bins)
     real(dp), intent(out), optional :: CFL_scale
-    real(dp) :: es, r_corr, c1, c2(n_drop_bins), S_corr(n_drop_bins), dt_D(n_drop_bins), &
-                diameter_new(n_drop_bins), conc_new(n_drop_bins), f(n_drop_bins)
+    real(dp) :: es, r_corr, c1, c2(n_drop_bins), S_corr(n_drop_bins), dt_V(n_drop_bins), &
+                volume_new(n_drop_bins), conc_new(n_drop_bins), f(n_drop_bins)
 
-
-    !LWC_before = sum(drop_volume*drop_conc)*rho_w
-
-    es = 288513966.0*exp(-4302.645/(T-29.65)) * 1D2 ! [Pa]
+    es = 288513966.0*exp(-4302.645/(T-29.65)) * 1D2 ! Saturation vepor pressure[Pa]
+    ! Ventilation coefficients
     where (Re < 2.5)
         f = 1 + 0.09*Re
     elsewhere
         f = 0.78+0.28*sqrt(Re)
     end where
+    ! Helper variables
     c1 = D_w*L*L*es/(K_a*R_v*R_v*T**3)
     c2 = D_w*es*f/(rho_w*R_v*T)
+    ! Correct radius and saturation
     r_corr = D_w*sqrt(2*PI/(R_v*T))/alpha/(1+c1)
-    S_corr = saturation - a/(midpoints/2) + b/(midpoints/2)**3
+    S_corr = saturation - a/(midpoints/2) + b/(midpoints/2)**3 ! S* in the paper
 
-
-    dt_D = 2*f*c2*S_corr/((midpoints/2 + r_corr)*(1+c1))
-    dt_D(n_drop_bins) = 0
+    ! Compute volume rate of change in droplets
+    dt_V = 0.5*PI*midpoints**2 * f*c2*S_corr/((midpoints/2 + r_corr)*(1+c1))
+    dt_V(n_drop_bins) = 0
     if (present(CFL_scale)) then
-        CFL_scale = minval(abs((diameter(2:) - diameter(1:n_drop_bins-1)) / dt_D(2:)))
+        CFL_scale = minval(abs((drop_volume(2:) - drop_volume(1:n_drop_bins-1)) / dt_V(2:)))
         return
     end if
 
-
-    diameter_new = midpoints + dt_drops*dt_D
-    !print *, drop_conc
-    call drop_conc_after_volume_change(drop_conc, diameter_new, conc_new)
+    ! Advance and remap the distribution using finite volume
+    volume_new = drop_volume_mid + dt_drops*dt_V
+    call drop_conc_after_volume_change(drop_conc, volume_new, conc_new)
 
     conc_change = conc_new - drop_conc
 
-    !if (conc_half(1) > drop_conc(1)) then
-    !    evap_smallest = (conc_half(1)-drop_conc(1))*rho_w*drop_volume(1)
-    !else
-    !    evap_smallest = 0
-    !    conc_new(1) = conc_half(1)
-    !end if
-    !conc_new(2:) = conc_half(2:)
-
-    !print *, drop_conc
-    !print *, conc_half
-    !stop ''
-
-    !LWC_after = sum(drop_volume*conc_new)*rho_w
-    !q_change = R_a*T * (LWC_before - LWC_after + evap_smallest) / p
-    !saturation_change = q_change * p / (0.622*es)
-
-    !print *, saturation, saturation_change, drop_conc
-
+    ! Sanity check
     if (any(conc_new < 0)) then
         print *, conc_new
         stop 'Droplet concentration negative after condensation'
@@ -261,24 +222,27 @@ subroutine compute_condensation(drop_conc, a, b, T, p, saturation, dt_drops, con
 
 end subroutine
 
-subroutine drop_conc_after_volume_change(drop_conc, diameter_new, conc_new)
+! The finite volume method
+subroutine drop_conc_after_volume_change(drop_conc, volume_new, conc_new)
     implicit none
-    real(dp), intent(in) :: drop_conc(:), diameter_new(:)
+    real(dp), intent(in) :: drop_conc(:), volume_new(:)
     real(dp), intent(out) :: conc_new(:)
     real(dp) :: Flux_left, Flux_right, slope(N_drop_bins), slope_center, &
-                slope_right, slope_left, dD(n_drop_bins), n(n_drop_bins)
+                slope_right, slope_left, dV(n_drop_bins), n(n_drop_bins)
     integer :: j
 
-    n(1:n_drop_bins-1) = drop_conc(1:n_drop_bins-1) / (midpoints(2:) - midpoints(1:n_drop_bins-1))
+    ! Normalize profile
+    n(1:n_drop_bins-1) = drop_conc(1:n_drop_bins-1) / (drop_volume_mid(2:) - drop_volume_mid(1:n_drop_bins-1))
 
-    dD = diameter_new - midpoints
+    dV = volume_new - drop_volume_mid
 
+    ! Find the limited slopes
     slope(1) = 0
     slope(n_drop_bins) = 0
     do j = 2, n_drop_bins-1
-        slope_center = (n(j+1) - n(j-1)) / (diameter(j+1) - diameter(j-1))
-        slope_right = (n(j+1) - n(j)) / (midpoints(j+1) - diameter(j))
-        slope_left = (n(j) - n(j-1)) / (diameter(j) - midpoints(j))
+        slope_center = (n(j+1) - n(j-1)) / (drop_volume(j+1) - drop_volume(j-1))
+        slope_right = (n(j+1) - n(j)) / (drop_volume_mid(j+1) - drop_volume(j))
+        slope_left = (n(j) - n(j-1)) / (drop_volume(j) - drop_volume_mid(j))
         if (slope_left > 0 .and. slope_right > 0 .and. slope_center > 0) then
             slope(j) = min(slope_left, slope_right, slope_center)
         else if (slope_left < 0 .and. slope_right < 0 .and. slope_center < 0) then
@@ -291,13 +255,14 @@ subroutine drop_conc_after_volume_change(drop_conc, diameter_new, conc_new)
     conc_new = 0
     conc_new(n_drop_bins) = drop_conc(n_drop_bins)
 
+    ! Compute the final fluxes and advance
     Flux_left = 0
     do j = 1,n_drop_bins-1
 
-        if (dD(j+1) > 0) then
-            Flux_right = n(j)*dD(j+1) !+ slope(j)*(dD(j+1)*(midpoints(j+1)-diameter(j)) - 0.5*dD(j+1)**2)
+        if (dV(j+1) > 0) then
+            Flux_right = n(j)*dV(j+1) + slope(j)*(dV(j+1)*(drop_volume_mid(j+1)-drop_volume(j)) - 0.5*dV(j+1)**2)
         else if (j < n_drop_bins-1) then
-            Flux_right = n(j+1)*dD(j+1) !+ slope(j+1)*(dD(j+1)*(midpoints(j+1)-diameter(j+1)) - 0.5*dD(j+1)**2)
+            Flux_right = n(j+1)*dV(j+1) + slope(j+1)*(dV(j+1)*(drop_volume_mid(j+1)-drop_volume(j+1)) - 0.5*dV(j+1)**2)
         else
             Flux_right = 0
         end if
@@ -306,52 +271,9 @@ subroutine drop_conc_after_volume_change(drop_conc, diameter_new, conc_new)
         Flux_left = Flux_right
     end do
 
-
 end subroutine
 
-!subroutine compute_coalescence(drop_conc, dt_drops)
-!    implicit none
-!    real(dp), intent(inout) :: drop_conc(:)
-!    real(dp), intent(in) :: dt_drops
-!    real(dp), dimension(n_drop_bins) :: dt_V, volume_new, coag_loss, conc_new
-!    real(dp) :: x1, x2
-!    integer :: i, j
-!
-!    !print *, drop_conc
-!    !print *, sum(drop_volume*drop_conc)
-!
-!    do i = 1, n_drop_bins
-!        dt_V(i) = sum(drop_volume(1:i) * drop_conc(1:i) * collision_kernel(1:i,i))
-!        coag_loss(i) = drop_conc(i) * sum(collision_kernel(i+1:,i) * drop_conc(i+1:)) ! Assumes no self-coagulation
-!    end do
-!
-!    volume_new = drop_volume + dt_drops*dt_V
-!    drop_conc = drop_conc - dt_drops*coag_loss
-!
-!    conc_new = 0
-!    conc_new(n_drop_bins) = drop_conc(n_drop_bins)
-!
-!    do j = 1,n_drop_bins-1
-!        x1 = (drop_volume(j+1) - volume_new(j)) / (drop_volume(j+1) - drop_volume(j))
-!        x2 = 1 - x1
-!        conc_new(j) = conc_new(j) + x1*drop_conc(j)
-!        conc_new(j+1) = conc_new(j+1) + x2*drop_conc(j)
-!    end do
-!
-!    !print *, sum(drop_conc)
-!    !print *, sum(conc_new)
-!    !print *, sum(drop_volume*conc_new)
-!    !print *, conc_new
-!    !print *, coag_loss
-!    !print *, collision_kernel(:,n_drop_bins-10)
-!    !print *, diameter
-!    !stop 'f'
-!
-!    drop_conc = conc_new
-!    print *, drop_conc
-!
-!end subroutine
-!
+! Coalescence computations
 subroutine compute_coalescence(drop_conc, dt_drops)
     implicit none
     real(dp), intent(inout) :: drop_conc(:)
@@ -360,13 +282,8 @@ subroutine compute_coalescence(drop_conc, dt_drops)
     real(dp) :: x1, x2
     integer :: i, j
 
-    !print *, drop_conc
-    !print *, 'Volume: ', sum(drop_volume*drop_conc)
-
-    !conc_original = drop_conc
-
-    dt_V(1) = 0
-    coag_loss(1) = drop_conc(1) * sum(collision_kernel(:,1) * drop_conc(:))
+    dt_V(1) = 0 ! Volume rate of change
+    coag_loss(1) = drop_conc(1) * sum(collision_kernel(:,1) * drop_conc(:)) ! Loss in concentration
     do i = 2, n_drop_bins-1
         dt_V(i) = sum(drop_volume(1:i-1) * drop_conc(1:i-1) * collision_kernel_mid(1:i-1,i))
         coag_loss(i) = drop_conc(i) * sum(collision_kernel(i+1:,i) * drop_conc(i+1:)) ! Assumes no self-coagulation
@@ -375,26 +292,19 @@ subroutine compute_coalescence(drop_conc, dt_drops)
     dt_V(i) = sum(drop_volume(1:i-1) * drop_conc(1:i-1) * collision_kernel_mid(1:i-1,i))
     coag_loss(i) = 0
 
+    ! Compute new volume and concentration
     volume_new = drop_volume_mid + dt_drops*dt_V
-    diameter_new = (6*volume_new/PI)**(1D0/3D0)
     drop_conc = drop_conc - dt_drops*coag_loss
 
-    !print *, 'Number before:', sum(drop_conc)*1e-6
-    call drop_conc_after_volume_change(drop_conc, diameter_new, conc_new)
-    !print *, 'Number after:', sum(conc_new)*1e-6
+    ! Advance using finite volume
+    call drop_conc_after_volume_change(drop_conc, volume_new, conc_new)
 
-    !print *, conc_new
     if (any(conc_new < 0)) then
-        print *, ' '
-        !print *, conc_original
-        !print *, drop_conc
         print *, conc_new
         stop 'Droplet concentration negative after coagulation'
     end if
 
     drop_conc = conc_new
-
-
 
 end subroutine
 

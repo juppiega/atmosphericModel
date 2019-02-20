@@ -62,7 +62,7 @@ SUBROUTINE Time_Init()
   ! Simulation time period
   !
   time_start = 0
-  time_end = 1.5*3600+16*60!1*24*3600 + 16*60!4.5*86400 + 10 + time_start
+  time_end = 3*24*3600 + 16*60!4.5*86400 + 10 + time_start
 
   !
   ! Time steps
@@ -83,9 +83,9 @@ SUBROUTINE Time_Init()
   if (box) then
     time_start_chemistry = 0*24*one_hour + time_start
   else
-    time_start_chemistry = 0*24*one_hour + time_start
+    time_start_chemistry = time_end
   end if
-  time_start_aerosol = 1*3600
+  time_start_aerosol = time_end
 
   time_start_output = dt_output + time_start
 

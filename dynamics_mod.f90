@@ -134,6 +134,7 @@ CONTAINS
 
     end subroutine
 
+    ! DEPRECATED -- DO NOT USE
     ! function compute_Km() result(Km)
     ! PURPOSE: Compute turbulent coefficient for momentum transfer.
     function compute_Km() result(Km)
@@ -185,6 +186,7 @@ CONTAINS
 
     end function
 
+    ! DEPRECATED -- DO NOT USE
     ! function compute_Kh() result(Kh)
     ! PURPOSE: Compute turbulent coefficient for heat and chemical transport.
     function compute_Kh() result(Kh)
