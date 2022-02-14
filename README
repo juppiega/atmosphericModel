@@ -4,6 +4,7 @@ INTRODUCTION:
     (https://doi.org/10.1175/2010MWR3142.1)
   - Spectral (bin) model for aerosols and cloud microphysics
   - See files "microphysics_description.pdf" and "TEMF_description.pdf" for more details
+    and sample outputs
 
 BUILDING:
   - Execute "make" in the root folder
