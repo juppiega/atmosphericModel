@@ -112,9 +112,12 @@ function plotTimeseriesSurf(varname, chemname)
   surf(X, Y, var(ind,:)','edgecolor','none')
   view(2)
   axis tight
-  colorbar
+  hc=colorbar;
+  cm = colormap;
+  set(hc,'fontsize',15)
+  set(gca,'color',cm(1,:))
   caxis([quantile(var(:),0.01), quantile(var(:),0.99)])
-  shading interp
+  %shading interp
   if strcmpi(varname,'w_kin') || strcmpi(varname,'flux_t')
       caxis([-max(var(:)), max(var(:))])
   end
@@ -127,6 +130,7 @@ function plotTimeseriesSurf(varname, chemname)
   else
     ylabel('z [m]', 'fontsize', 15)
   end
+  varname = regexprep(varname,'_',' ');
   if nargin == 1
     title(varname, 'fontsize', 15)
   else
@@ -134,7 +138,7 @@ function plotTimeseriesSurf(varname, chemname)
   end
   set(gca,'fontsize',15)
   if ~size_distrib
-    ylim([0, 3000])
+    ylim([0, 2000])
   end
   
   
