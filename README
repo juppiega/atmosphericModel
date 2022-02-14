@@ -8,7 +8,7 @@ INTRODUCTION:
 
 BUILDING:
   - Execute "make" in the root folder (possibly modifying compile options)
-  - Requires OpenMP
+  - OpenMP recommended (enabled by default)
 
 RUNNING:
   - "./atmosphericModel" in the root folder
