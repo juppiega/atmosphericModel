@@ -2,20 +2,17 @@
 !
 ! Main program
 !
-! - Simulate emissions and chemical reactions of gases, aerosol processes as well as 
-!   transport of gases and aerosol particles within the planetary boundary layer with a
-!   column model.
-! - Check Fortran conventions at http://www.fortran90.org/src/best-practices.html
-! - Check code conventions at
-!   http://www.cesm.ucar.edu/working_groups/Software/dev_guide/dev_guide/node7.html
+! INTRODUCTION:
+!  - Single-cloumn PBL model with aerosol/cloud physics 
+!  - Total Energy - Mass Flux scheme for PBL dynamics from Angevine et al. (2010) 
+!    (https://doi.org/10.1175/2010MWR3142.1)
+!  - Spectral (bin) model for aerosols and cloud microphysics
 !
 ! BUILDING:
-! -Execute "make all" in the Debug folder.
+!  - Execute "make" in the root folder
 !
 ! RUNNING:
-! -Execute command
-!    $ Debug/atmosphericModel
-! in atmosphericModel/ folder (where the output/ folder resides).
+!  - "./atmosphericModel" in the root folder
 !
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 

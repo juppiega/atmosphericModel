@@ -1,5 +1,5 @@
 ! module parameterizations_mod
-! PURPOSE: Compute parametrizations (at this stage, chemistry emissions and depositions only)
+! PURPOSE: Compute parametrizations 
 module parameterizations_mod
     use omp_lib
     use radiation_mod
@@ -169,8 +169,8 @@ contains
             t = time
 
             ! CALL SOLVER ------------
-            call dlsode(f, input_array, concentrations, t, t+dt_chem, itol, rtol, atol, itask, &
-                        istate, iopt, rwork, lrw, iwork, liw, jac, mf)
+            !call dlsode(f, input_array, concentrations, t, t+dt_chem, itol, rtol, atol, itask, &
+            !            istate, iopt, rwork, lrw, iwork, liw, jac, mf)
             ! ------------------------
 
             concentrations = max(concentrations, 0.0D0) ! No negative concentrations.

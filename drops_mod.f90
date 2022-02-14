@@ -351,7 +351,7 @@ function coal_eff(D_big, d_small) result(e)
 
     R_big = 100*D_big/2; r_small = 100*d_small/2;
 
-    e_small = min(max(4.5E4*R_big**2 * (1 - 3E-4/r_small),0D0),1D0);
+    e_small = min(max(4.5E4*R_big**2 * (1 - 3E-4/r_small),0.),1.);
 
     R_big = R_big/100; r_small = r_small / 100;
     y = R_big / r_small;

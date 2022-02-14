@@ -792,7 +792,7 @@ CONTAINS
     SUBROUTINE dynamics_init()
         implicit none
         CHARACTER(255), PARAMETER :: outdir = 'output'
-        mixingLength_ = compute_mixingLength() ! SAILYTA
+        mixingLength_ = compute_mixingLength() 
     END SUBROUTINE dynamics_init
 
 

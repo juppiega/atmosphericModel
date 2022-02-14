@@ -1,10 +1,7 @@
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !
 ! Meteorology module
-! - Compute eddy diffusivity coefficients
-! - Compute wind fields
-! - Compute theta field
-! - Mix chemicals and aerosols
+! - Surface boundary condition
 !
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 

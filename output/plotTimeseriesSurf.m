@@ -114,7 +114,7 @@ function plotTimeseriesSurf(varname, chemname)
   axis tight
   colorbar
   caxis([quantile(var(:),0.01), quantile(var(:),0.99)])
-  %shading interp
+  shading interp
   if strcmpi(varname,'w_kin') || strcmpi(varname,'flux_t')
       caxis([-max(var(:)), max(var(:))])
   end

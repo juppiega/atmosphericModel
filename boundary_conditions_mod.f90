@@ -72,39 +72,9 @@ SUBROUTINE surface_values(temperature, time)
 ! Description
 !
 ! Get surface temperature at specific time.
-!
-! Note: can also get water concentrantion, in ppt, if modify this
-! subroutine to also use column 8.
-!
-! Data is taken from:
-! http://www.atm.helsinki.fi/~junninen/smartSearch/smartSearch.php
 !-----------------------------------------------------------------------------------------
-  !
-  ! Only when called for the first time, read in data from file
-  ! With this trick, we don't need to open the file in the main program
-  !
-  IF (first_time) THEN
-     OPEN(30, file='input/hyytiala_2011_8_10_t_h2o.dat', status='old')
-     READ(30, *) surface_data
-     temperature_data(1:50) = surface_data(7,1:50) ! in Celcius
-     first_time = .FALSE.
-  END IF
 
-  time24h = MODULO(time, seconds_in_day) ! time modulo 24 hours
-  time24plus15 = time24h + 15*60 ! time since 23:45 previous day
-  time30min = MODULO(time24plus15, seconds_in_30min)
-  index = 1 + FLOOR(time24plus15/seconds_in_30min)
-
-  temp1 = temperature_data(index)
-  temp2 = temperature_data(index + 1)
-  x = time30min/seconds_in_30min
-
-  !
-  ! linear interpolation between previous and next temperature data value
-  !
-  !temperature = temp1 + x*(temp2 - temp1) + 273.15_dp ! now in Kelvin
-
-  temperature = sin(2*PI*time/86400 + PI)*1 + 19 + 273.15
+  temperature = sin(2*PI*time/86400 + PI)*1 + 19 + 273.15 ! Marine PBL SST daily cycle
 
 
 END SUBROUTINE surface_values

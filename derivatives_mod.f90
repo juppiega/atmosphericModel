@@ -1,6 +1,5 @@
 module derivatives_mod
     use grid_mod, only: nz, z, zmid
-    use fft_mod
     implicit none
 
     contains

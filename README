@@ -1,0 +1,30 @@
+INTRODUCTION:
+  - Single-cloumn PBL model with aerosol/cloud physics 
+  - Total Energy - Mass Flux scheme for PBL dynamics from Angevine et al. (2010) 
+    (https://doi.org/10.1175/2010MWR3142.1)
+  - Spectral (bin) model for aerosols and cloud microphysics
+
+BUILDING:
+  - Execute "make" in the root folder
+
+RUNNING:
+  - "./atmosphericModel" in the root folder
+  
+OUTPUT/PLOTTING:
+  - All variables are written to output/ every 15 minutes (can be modified in time_mod)
+  - Visualization is done in Octave inside the output/ folder
+  - Timeseries can be plot using "plotTimeseriesSurf.m"
+    * For any field that's computed at all levels
+    * Files are named <VARIABLE_NAME>.dat
+    * e.g., "plotTimeseriesSurf('Km')" plots Eddy diffusion coefficients
+
+BOUNDARY CONDITIONS:
+  - Default is a simulation of a marine boundary-layer 
+    under strong subsidence (e.g. coast of California)
+  - Cloud scheme turned off by default
+    * Switch parameters_mod:model_aerosols to .true. to enable
+  - Surface temperature (SST) definition:
+    boundary_conditions_mod:surface_values()
+  - Upper boundary potential temperature and subsidence velocity in parameters_mod
+
+

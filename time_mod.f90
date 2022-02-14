@@ -85,7 +85,7 @@ SUBROUTINE Time_Init()
   else
     time_start_chemistry = time_end
   end if
-  time_start_aerosol = time_end
+  time_start_aerosol = 1*3600
 
   time_start_output = dt_output + time_start
 

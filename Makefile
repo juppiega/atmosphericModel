@@ -1,5 +1,5 @@
 FC = gfortran
-FFLAGS = -O3 -fopenmp
+FFLAGS = -O3 -fopenmp -std=f2008 -fdefault-real-8 -fdefault-double-8
 
 OBJS = \
 ./aerosol_mod.o \
@@ -8,13 +8,9 @@ OBJS = \
 ./derivatives_mod.o \
 ./drops_mod.o \
 ./dynamics_mod.o \
-./fft_mod.o \
 ./grid_mod.o \
 ./main.o \
 ./meteorology_mod.o \
-./opkda1.o \
-./opkda2.o \
-./opkdmain.o \
 ./parameterizations_mod.o \
 ./parameters_mod.o \
 ./prognostics_mod.o \
@@ -47,13 +43,12 @@ boundary_conditions_mod.o:  boundary_conditions_mod.f90 parameters_mod.o prognos
 
 chemistry_mod.o:  chemistry_mod.f90 grid_mod.o parameters_mod.o time_mod.o
 
-derivatives_mod.o:  derivatives_mod.f90 fft_mod.o grid_mod.o
+derivatives_mod.o:  derivatives_mod.f90 grid_mod.o
 
 drops_mod.o:  drops_mod.f90 parameters_mod.o time_mod.o
 
 dynamics_mod.o:  dynamics_mod.f90 aerosol_mod.o derivatives_mod.o grid_mod.o parameters_mod.o prognostics_mod.o time_mod.o
 
-fft_mod.o:  fft_mod.f90 parameters_mod.o
 
 grid_mod.o:  grid_mod.f90 parameters_mod.o
 
@@ -61,11 +56,6 @@ main.o:  main.f90 aerosol_mod.o boundary_conditions_mod.o drops_mod.o dynamics_m
 
 meteorology_mod.o:  meteorology_mod.f90 grid_mod.o parameters_mod.o time_mod.o
 
-opkda1.o:  opkda1.f
-
-opkda2.o:  opkda2.f
-
-opkdmain.o:  opkdmain.f
 
 parameterizations_mod.o:  parameterizations_mod.f90 aerosol_mod.o chemistry_mod.o parameters_mod.o prognostics_mod.o radiation_mod.o time_mod.o
 

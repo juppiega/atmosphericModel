@@ -40,9 +40,9 @@ integer, parameter :: leapfrog_atMidpoint = 1, leapfrog_atPreviousFullTime = 2, 
 integer, parameter :: euler = 1, leapfrog = 2, RK4 = 3
 
 logical, parameter :: output_chemistry = .true.
-logical, parameter :: model_chemistry = .false.
+logical, parameter :: model_chemistry = .false. ! Chemistry not implemented!
 logical, parameter :: box = .false.
-logical, parameter :: model_aerosols = .true.
+logical, parameter :: model_aerosols = .false. ! Switch to true to enable cloud microphysics scheme (computationally heavy)
 CHARACTER(255), PARAMETER :: outdir = 'output'
 integer :: scheme = 2 ! 1 = K_theory, 2 = TEMF
 
